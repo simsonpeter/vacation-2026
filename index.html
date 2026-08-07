@@ -45,17 +45,22 @@
 
   <!-- Filter & Actions Bar -->
   <main class="flex-1 max-w-3xl w-full mx-auto p-4 space-y-4 pb-24">
-    <div class="flex items-center justify-between gap-2 overflow-x-auto pb-1">
-      <div class="flex space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700/50">
-        <button onclick="filterCategory('ALL')" class="filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition bg-brand-600 text-white" id="filter-ALL">All</button>
-        <button onclick="filterCategory('FLIGHT')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition" id="filter-FLIGHT">✈️ Flights</button>
-        <button onclick="filterCategory('TRAIN')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition" id="filter-TRAIN">🚆 Trains</button>
-        <button onclick="filterCategory('ACTIVITY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition" id="filter-ACTIVITY">🏛️ Sights</button>
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700/50 overflow-x-auto">
+        <button onclick="filterCategory('ALL')" class="filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition bg-brand-600 text-white whitespace-nowrap" id="filter-ALL">All</button>
+        <button onclick="filterCategory('TODAY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-TODAY">Today</button>
+        <button onclick="filterCategory('UPCOMING')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-UPCOMING">Upcoming</button>
       </div>
-      
-      <button onclick="openModal()" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-semibold text-white shadow-lg shadow-brand-500/20 whitespace-nowrap">
+
+      <button onclick="openModal()" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-semibold text-white shadow-lg shadow-brand-500/20 whitespace-nowrap shrink-0">
         + Add Event
       </button>
+    </div>
+
+    <div class="flex space-x-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/40 overflow-x-auto w-fit max-w-full">
+      <button onclick="filterCategory('FLIGHT')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-FLIGHT">✈️ Flights</button>
+      <button onclick="filterCategory('TRAIN')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-TRAIN">🚆 Trains</button>
+      <button onclick="filterCategory('ACTIVITY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-ACTIVITY">🏛️ Sights</button>
     </div>
 
     <!-- Timeline Container -->
@@ -233,19 +238,94 @@
       HOTEL: '🏨'
     };
 
+    function getTodayDate() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function sortEvents(events) {
+      return [...events].sort((a, b) => {
+        const byDateTime = (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''));
+        if (byDateTime !== 0) return byDateTime;
+        return (a.title || '').localeCompare(b.title || '');
+      });
+    }
+
+    function filterEvents(events) {
+      const today = getTodayDate();
+      switch (currentFilter) {
+        case 'TODAY':
+          return events.filter(e => e.date === today);
+        case 'UPCOMING':
+          return events.filter(e => e.date > today);
+        case 'FLIGHT':
+        case 'TRAIN':
+        case 'BUS':
+        case 'ACTIVITY':
+        case 'HOTEL':
+          return events.filter(e => e.type === currentFilter);
+        case 'ALL':
+        default:
+          return events;
+      }
+    }
+
+    function formatDayLabel(dateStr) {
+      const today = getTodayDate();
+      if (dateStr === today) return 'Today';
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const y = tomorrow.getFullYear();
+      const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const day = String(tomorrow.getDate()).padStart(2, '0');
+      if (dateStr === `${y}-${m}-${day}`) return 'Tomorrow';
+
+      const d = new Date(`${dateStr}T00:00:00`);
+      return d.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    function emptyFilterMessage() {
+      if (currentFilter === 'TODAY') return 'No events scheduled for today.';
+      if (currentFilter === 'UPCOMING') return 'No upcoming events.';
+      return 'No events found in this category.';
+    }
+
     function renderTimeline() {
-      const events = getEvents().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const events = sortEvents(getEvents());
       const timeline = document.getElementById('timeline');
       timeline.innerHTML = '';
 
-      const filtered = currentFilter === 'ALL' ? events : events.filter(e => e.type === currentFilter);
+      const filtered = filterEvents(events);
 
       if (filtered.length === 0) {
-        timeline.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No events found in this category.</p>`;
+        timeline.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">${emptyFilterMessage()}</p>`;
         return;
       }
 
+      let lastDate = null;
+
       filtered.forEach(ev => {
+        if (ev.date !== lastDate) {
+          lastDate = ev.date;
+          const heading = document.createElement('div');
+          heading.className = 'relative pl-8 pt-2';
+          heading.innerHTML = `
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              ${formatDayLabel(ev.date)}
+            </p>
+          `;
+          timeline.appendChild(heading);
+        }
+
         const item = document.createElement('div');
         item.className = 'relative pl-8 group';
 
@@ -260,7 +340,7 @@
             <div class="flex items-start justify-between">
               <div>
                 <span class="inline-block text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-0.5 rounded bg-brand-500/10 mb-1">
-                  ${ev.date} • ${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}
+                  ${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}
                 </span>
                 <h3 class="font-semibold text-slate-100 text-base">${ev.title}</h3>
               </div>
