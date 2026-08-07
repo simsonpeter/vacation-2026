@@ -158,14 +158,17 @@
         </div>
 
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-          <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-2">Ticket / Voucher</p>
-          <div class="flex items-center justify-between gap-2">
-            <div id="detailVoucherStatus" class="text-xs text-slate-400">Loading...</div>
-            <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600 shrink-0">
-              📎 Attach
-              <input type="file" id="detailVoucherInput" class="hidden" accept="image/*,application/pdf" onchange="uploadVoucherFromDetail(event)">
-            </label>
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium">Attachments</p>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="openLinkModal(currentDetailEventId)" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600">🔗 Link</button>
+              <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
+                📎 File
+                <input type="file" id="detailVoucherInput" class="hidden" accept="image/*,application/pdf" multiple onchange="uploadVoucherFromDetail(event)">
+              </label>
+            </div>
           </div>
+          <div id="detailVoucherStatus" class="text-xs text-slate-400 space-y-1.5">Loading...</div>
         </div>
       </div>
 
@@ -176,10 +179,35 @@
     </div>
   </div>
 
+  <!-- Add Link Modal -->
+  <div id="linkModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg">Add Link</h3>
+        <button onclick="closeLinkModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+      <form id="linkForm" onsubmit="saveLinkAttachment(event)" class="space-y-3">
+        <input type="hidden" id="linkEventId">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">URL</label>
+          <input type="url" id="linkUrl" required placeholder="https://..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Label (optional)</label>
+          <input type="text" id="linkLabel" placeholder="e.g. Booking confirmation" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+        </div>
+        <div class="flex justify-end space-x-2 pt-2">
+          <button type="button" onclick="closeLinkModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Save Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Document Preview Modal -->
-  <div id="docModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[60] flex flex-col hidden">
+  <div id="docModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[70] flex flex-col hidden">
     <div class="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
-      <h3 class="font-bold text-sm" id="docModalTitle">Voucher Preview</h3>
+      <h3 class="font-bold text-sm" id="docModalTitle">Attachment Preview</h3>
       <button onclick="closeDocModal()" class="text-slate-400 hover:text-white font-bold text-lg">&times;</button>
     </div>
     <div class="flex-1 p-2 flex items-center justify-center overflow-auto" id="docPreviewContainer">
@@ -201,12 +229,40 @@
     let currentDetailEventId = null;
     let db;
 
-    // Open IndexedDB
-    const request = indexedDB.open('VacationAppDB', 1);
+    // Open IndexedDB (v2: unlimited attachments per event + links)
+    const request = indexedDB.open('VacationAppDB', 2);
     request.onupgradeneeded = (e) => {
       db = e.target.result;
+      const tx = e.target.transaction;
+
       if (!db.objectStoreNames.contains('vouchers')) {
         db.createObjectStore('vouchers', { keyPath: 'eventId' });
+      }
+
+      if (!db.objectStoreNames.contains('attachments')) {
+        const store = db.createObjectStore('attachments', { keyPath: 'id' });
+        store.createIndex('eventId', 'eventId', { unique: false });
+      }
+
+      // Migrate legacy single-voucher records into attachments
+      if (tx.objectStoreNames.contains('vouchers') && tx.objectStoreNames.contains('attachments')) {
+        const legacy = tx.objectStore('vouchers');
+        const attachments = tx.objectStore('attachments');
+        legacy.openCursor().onsuccess = (ev) => {
+          const cursor = ev.target.result;
+          if (!cursor) return;
+          const v = cursor.value;
+          attachments.put({
+            id: `legacy-${v.eventId}`,
+            eventId: v.eventId,
+            kind: 'file',
+            fileName: v.fileName || 'Voucher',
+            fileType: v.fileType || 'application/octet-stream',
+            dataUrl: v.dataUrl || '',
+            createdAt: Date.now()
+          });
+          cursor.continue();
+        };
       }
     };
     request.onsuccess = (e) => {
@@ -219,6 +275,22 @@
         localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
       }
       renderTimeline();
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizeUrl(url) {
+      const trimmed = (url || '').trim();
+      if (!trimmed) return '';
+      if (/^https?:\/\//i.test(trimmed)) return trimmed;
+      return `https://${trimmed}`;
     }
 
     function getEvents() {
@@ -363,18 +435,21 @@
             ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1">📍 <span>${ev.location}</span></p>` : ''}
             ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg line-clamp-2">${ev.notes}</p>` : ''}
 
-            <!-- Voucher Attachment Section -->
-            <div class="pt-2 border-t border-slate-700/50 flex items-center justify-between" id="voucher-section-${ev.id}" onclick="event.stopPropagation()">
-              <div id="voucher-status-${ev.id}" class="text-xs text-slate-400">Loading attachment...</div>
-              <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
-                📎 Attach
-                <input type="file" class="hidden" accept="image/*,application/pdf" onchange="uploadVoucher('${ev.id}', event)">
-              </label>
+            <!-- Attachments Section -->
+            <div class="pt-2 border-t border-slate-700/50 space-y-2" id="voucher-section-${ev.id}" onclick="event.stopPropagation()">
+              <div id="voucher-status-${ev.id}" class="text-xs text-slate-400 space-y-1">Loading attachments...</div>
+              <div class="flex items-center gap-1.5 justify-end">
+                <button type="button" onclick="openLinkModal('${ev.id}')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600">🔗 Link</button>
+                <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
+                  📎 File
+                  <input type="file" class="hidden" accept="image/*,application/pdf" multiple onchange="uploadVoucher('${ev.id}', event)">
+                </label>
+              </div>
             </div>
           </div>
         `;
         timeline.appendChild(item);
-        checkVoucherStatus(ev.id);
+        renderAttachments(ev.id);
       });
     }
 
@@ -461,7 +536,7 @@
       document.getElementById('detailNotes').innerText = ev.notes || 'No notes';
       document.getElementById('detailVoucherStatus').innerHTML = `<span class="text-xs text-slate-500">Loading...</span>`;
       document.getElementById('eventDetailModal').classList.remove('hidden');
-      checkDetailVoucherStatus(id);
+      renderAttachments(id);
     }
 
     function closeEventDetail() {
@@ -486,27 +561,6 @@
       uploadVoucher(currentDetailEventId, event);
     }
 
-    function checkDetailVoucherStatus(eventId) {
-      if (!db) return;
-      const tx = db.transaction('vouchers', 'readonly');
-      const req = tx.objectStore('vouchers').get(eventId);
-      req.onsuccess = () => {
-        const res = req.result;
-        const container = document.getElementById('detailVoucherStatus');
-        if (!container || currentDetailEventId !== eventId) return;
-
-        if (res) {
-          container.innerHTML = `
-            <button onclick="viewVoucher('${eventId}')" class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1">
-              📄 View Voucher (${res.fileName})
-            </button>
-          `;
-        } else {
-          container.innerHTML = `<span class="text-xs text-slate-500">No ticket uploaded</span>`;
-        }
-      };
-    }
-
     function filterCategory(cat) {
       currentFilter = cat;
       document.querySelectorAll('.filter-btn').forEach(b => {
@@ -521,68 +575,186 @@
       renderTimeline();
     }
 
-    // Voucher Handling via IndexedDB
-    function uploadVoucher(eventId, event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const tx = db.transaction('vouchers', 'readwrite');
-        tx.objectStore('vouchers').put({
-          eventId,
-          fileName: file.name,
-          fileType: file.type,
-          dataUrl: e.target.result
-        });
-        tx.oncomplete = () => {
-          checkVoucherStatus(eventId);
-          if (currentDetailEventId === eventId) checkDetailVoucherStatus(eventId);
+    // Attachments via IndexedDB (unlimited files + links per event)
+    function getAttachmentsForEvent(eventId) {
+      return new Promise((resolve) => {
+        if (!db) return resolve([]);
+        const tx = db.transaction('attachments', 'readonly');
+        const req = tx.objectStore('attachments').index('eventId').getAll(eventId);
+        req.onsuccess = () => {
+          const items = (req.result || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          resolve(items);
         };
-      };
-      reader.readAsDataURL(file);
+        req.onerror = () => resolve([]);
+      });
     }
 
-    function checkVoucherStatus(eventId) {
-      if (!db) return;
-      const tx = db.transaction('vouchers', 'readonly');
-      const req = tx.objectStore('vouchers').get(eventId);
-      req.onsuccess = () => {
-        const res = req.result;
-        const container = document.getElementById(`voucher-status-${eventId}`);
-        if (!container) return;
+    function attachmentLabel(att) {
+      if (att.kind === 'link') return att.label || att.url || 'Link';
+      return att.fileName || 'File';
+    }
 
-        if (res) {
-          container.innerHTML = `
-            <button onclick="viewVoucher('${eventId}')" class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1">
-              📄 View Voucher (${res.fileName})
+    function jsStr(value) {
+      return JSON.stringify(String(value ?? ''));
+    }
+
+    function renderAttachmentRows(attachments, { showDelete = false } = {}) {
+      if (!attachments.length) {
+        return `<span class="text-xs text-slate-500">No attachments yet</span>`;
+      }
+
+      return attachments.map(att => {
+        const label = escapeHtml(attachmentLabel(att));
+        const icon = att.kind === 'link' ? '🔗' : '📄';
+        const idArg = jsStr(att.id);
+        const openAction = att.kind === 'link'
+          ? `openLinkAttachment(${idArg})`
+          : `viewAttachment(${idArg})`;
+        const deleteBtn = showDelete
+          ? `<button type="button" onclick="deleteAttachment(${idArg})" class="text-slate-500 hover:text-red-400 px-1" title="Remove">✕</button>`
+          : '';
+
+        return `
+          <div class="flex items-center justify-between gap-2">
+            <button type="button" onclick="${openAction}" class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1 min-w-0 text-left">
+              <span>${icon}</span>
+              <span class="truncate">${label}</span>
             </button>
-          `;
-        } else {
-          container.innerHTML = `<span class="text-xs text-slate-500">No ticket uploaded</span>`;
+            ${deleteBtn}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function renderAttachments(eventId) {
+      const attachments = await getAttachmentsForEvent(eventId);
+      const cardContainer = document.getElementById(`voucher-status-${eventId}`);
+      if (cardContainer) {
+        cardContainer.innerHTML = renderAttachmentRows(attachments, { showDelete: true });
+      }
+      if (currentDetailEventId === eventId) {
+        const detailContainer = document.getElementById('detailVoucherStatus');
+        if (detailContainer) {
+          detailContainer.innerHTML = renderAttachmentRows(attachments, { showDelete: true });
         }
+      }
+    }
+
+    function refreshAttachments(eventId) {
+      renderAttachments(eventId);
+    }
+
+    function uploadVoucher(eventId, event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length || !db) return;
+
+      let remaining = files.length;
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const tx = db.transaction('attachments', 'readwrite');
+          tx.objectStore('attachments').put({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            eventId,
+            kind: 'file',
+            fileName: file.name,
+            fileType: file.type,
+            dataUrl: e.target.result,
+            createdAt: Date.now()
+          });
+          tx.oncomplete = () => {
+            remaining -= 1;
+            if (remaining <= 0) {
+              refreshAttachments(eventId);
+              event.target.value = '';
+            }
+          };
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function openLinkModal(eventId) {
+      if (!eventId) return;
+      document.getElementById('linkEventId').value = eventId;
+      document.getElementById('linkForm').reset();
+      document.getElementById('linkEventId').value = eventId;
+      document.getElementById('linkModal').classList.remove('hidden');
+    }
+
+    function closeLinkModal() {
+      document.getElementById('linkModal').classList.add('hidden');
+    }
+
+    function saveLinkAttachment(e) {
+      e.preventDefault();
+      if (!db) return;
+
+      const eventId = document.getElementById('linkEventId').value;
+      const url = normalizeUrl(document.getElementById('linkUrl').value);
+      const label = document.getElementById('linkLabel').value.trim();
+      if (!eventId || !url) return;
+
+      const tx = db.transaction('attachments', 'readwrite');
+      tx.objectStore('attachments').put({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        eventId,
+        kind: 'link',
+        url,
+        label,
+        createdAt: Date.now()
+      });
+      tx.oncomplete = () => {
+        closeLinkModal();
+        refreshAttachments(eventId);
       };
     }
 
-    function viewVoucher(eventId) {
-      const tx = db.transaction('vouchers', 'readonly');
-      const req = tx.objectStore('vouchers').get(eventId);
+    function viewAttachment(attachmentId) {
+      if (!db) return;
+      const tx = db.transaction('attachments', 'readonly');
+      const req = tx.objectStore('attachments').get(attachmentId);
       req.onsuccess = () => {
         const res = req.result;
-        if (!res) return;
+        if (!res || res.kind !== 'file') return;
 
         const preview = document.getElementById('docPreviewContainer');
-        document.getElementById('docModalTitle').innerText = res.fileName;
+        document.getElementById('docModalTitle').innerText = res.fileName || 'Attachment';
 
-        if (res.fileType.startsWith('image/')) {
+        if ((res.fileType || '').startsWith('image/')) {
           preview.innerHTML = `<img src="${res.dataUrl}" class="max-w-full max-h-full rounded-lg object-contain">`;
         } else if (res.fileType === 'application/pdf') {
           preview.innerHTML = `<iframe src="${res.dataUrl}" class="w-full h-full rounded-lg"></iframe>`;
         } else {
-          preview.innerHTML = `<a href="${res.dataUrl}" download="${res.fileName}" class="text-brand-500 underline">Download Ticket File</a>`;
+          preview.innerHTML = `<a href="${res.dataUrl}" download="${escapeHtml(res.fileName || 'file')}" class="text-brand-500 underline">Download File</a>`;
         }
 
         document.getElementById('docModal').classList.remove('hidden');
+      };
+    }
+
+    function openLinkAttachment(attachmentId) {
+      if (!db) return;
+      const tx = db.transaction('attachments', 'readonly');
+      const req = tx.objectStore('attachments').get(attachmentId);
+      req.onsuccess = () => {
+        const res = req.result;
+        if (!res || res.kind !== 'link' || !res.url) return;
+        window.open(res.url, '_blank', 'noopener,noreferrer');
+      };
+    }
+
+    function deleteAttachment(attachmentId) {
+      if (!db || !confirm('Remove this attachment?')) return;
+      const readTx = db.transaction('attachments', 'readonly');
+      const getReq = readTx.objectStore('attachments').get(attachmentId);
+      getReq.onsuccess = () => {
+        const att = getReq.result;
+        const delTx = db.transaction('attachments', 'readwrite');
+        delTx.objectStore('attachments').delete(attachmentId);
+        delTx.oncomplete = () => {
+          if (att?.eventId) refreshAttachments(att.eventId);
+        };
       };
     }
 
@@ -592,25 +764,39 @@
 
     function deleteVoucherFromDB(eventId) {
       if (!db) return;
-      const tx = db.transaction('vouchers', 'readwrite');
-      tx.objectStore('vouchers').delete(eventId);
+      const tx = db.transaction(['attachments', 'vouchers'], 'readwrite');
+      const attachments = tx.objectStore('attachments');
+      const index = attachments.index('eventId');
+      index.openCursor(IDBKeyRange.only(eventId)).onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (!cursor) return;
+        cursor.delete();
+        cursor.continue();
+      };
+      // Also clear any legacy single-voucher record
+      if (tx.objectStoreNames.contains('vouchers')) {
+        tx.objectStore('vouchers').delete(eventId);
+      }
     }
 
     // Export & Import Data Backup
     async function exportData() {
       const events = getEvents();
-      const tx = db.transaction('vouchers', 'readonly');
-      const req = tx.objectStore('vouchers').getAll();
+      const tx = db.transaction(['attachments', 'vouchers'], 'readonly');
+      const attachmentsReq = tx.objectStore('attachments').getAll();
+      const vouchersReq = tx.objectStore('vouchers').getAll();
 
-      req.onsuccess = () => {
-        const vouchers = req.result;
-        const payload = JSON.stringify({ events, vouchers }, null, 2);
+      Promise.all([
+        new Promise(resolve => { attachmentsReq.onsuccess = () => resolve(attachmentsReq.result || []); }),
+        new Promise(resolve => { vouchersReq.onsuccess = () => resolve(vouchersReq.result || []); })
+      ]).then(([attachments, vouchers]) => {
+        const payload = JSON.stringify({ events, attachments, vouchers }, null, 2);
         const blob = new Blob([payload], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `vacation_backup_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
-      };
+      });
     }
 
     function importData(e) {
@@ -624,12 +810,35 @@
           if (data.events) {
             localStorage.setItem('vacation_events', JSON.stringify(data.events));
           }
-          if (data.vouchers && Array.isArray(data.vouchers)) {
-            const tx = db.transaction('vouchers', 'readwrite');
-            data.vouchers.forEach(v => tx.objectStore('vouchers').put(v));
+
+          const tx = db.transaction(['attachments', 'vouchers'], 'readwrite');
+          const attachmentsStore = tx.objectStore('attachments');
+          const vouchersStore = tx.objectStore('vouchers');
+
+          if (Array.isArray(data.attachments)) {
+            data.attachments.forEach(a => attachmentsStore.put(a));
           }
-          alert('Data and vouchers restored successfully!');
-          renderTimeline();
+
+          // Support older backups that only had a single voucher per event
+          if (Array.isArray(data.vouchers)) {
+            data.vouchers.forEach(v => {
+              vouchersStore.put(v);
+              attachmentsStore.put({
+                id: v.id || `legacy-${v.eventId}`,
+                eventId: v.eventId,
+                kind: 'file',
+                fileName: v.fileName || 'Voucher',
+                fileType: v.fileType || 'application/octet-stream',
+                dataUrl: v.dataUrl || '',
+                createdAt: v.createdAt || Date.now()
+              });
+            });
+          }
+
+          tx.oncomplete = () => {
+            alert('Data and attachments restored successfully!');
+            renderTimeline();
+          };
         } catch (err) {
           alert('Invalid backup file.');
         }
