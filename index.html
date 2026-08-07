@@ -206,9 +206,13 @@
 
   <!-- Document Preview Modal -->
   <div id="docModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[70] flex flex-col hidden">
-    <div class="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
-      <h3 class="font-bold text-sm" id="docModalTitle">Attachment Preview</h3>
-      <button onclick="closeDocModal()" class="text-slate-400 hover:text-white font-bold text-lg">&times;</button>
+    <div class="flex items-center justify-between gap-3 p-4 bg-slate-900 border-b border-slate-800">
+      <h3 class="font-bold text-sm truncate" id="docModalTitle">Attachment Preview</h3>
+      <div class="flex items-center gap-2 shrink-0">
+        <a id="docOpenExternal" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-xs text-brand-500 hover:underline">Open</a>
+        <a id="docDownloadLink" href="#" download class="hidden text-xs text-slate-300 hover:text-white">Download</a>
+        <button onclick="closeDocModal()" class="text-slate-400 hover:text-white font-bold text-lg leading-none">&times;</button>
+      </div>
     </div>
     <div class="flex-1 p-2 flex items-center justify-center overflow-auto" id="docPreviewContainer">
       <!-- Rendered image or iframe -->
@@ -695,17 +699,18 @@
       return attachments.map(att => {
         const label = escapeHtml(attachmentLabel(att));
         const icon = att.kind === 'link' ? '🔗' : '📄';
+        // Use single-quoted HTML attrs so JSON string args with " don't break onclick
         const idArg = jsStr(att.id);
         const openAction = att.kind === 'link'
           ? `openLinkAttachment(${idArg})`
           : `viewAttachment(${idArg})`;
         const deleteBtn = showDelete
-          ? `<button type="button" onclick="deleteAttachment(${idArg})" class="text-slate-500 hover:text-red-400 px-1" title="Remove">✕</button>`
+          ? `<button type="button" onclick='deleteAttachment(${idArg})' class="text-slate-500 hover:text-red-400 px-1" title="Remove">✕</button>`
           : '';
 
         return `
           <div class="flex items-center justify-between gap-2">
-            <button type="button" onclick="${openAction}" class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1 min-w-0 text-left">
+            <button type="button" onclick='${openAction}' class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1 min-w-0 text-left">
               <span>${icon}</span>
               <span class="truncate">${label}</span>
             </button>
@@ -753,30 +758,83 @@
       const files = Array.from(input.files || []);
       if (!files.length) return;
 
+      const pending = [];
       let remaining = files.length;
+      let failed = 0;
+
+      const finishIfDone = () => {
+        if (remaining > 0) return;
+        if (pending.length) {
+          try {
+            upsertAttachments(pending);
+            refreshAttachments(eventId);
+          } catch (err) {
+            console.error(err);
+            alert('Could not save one or more files. They may be too large for browser storage.');
+          }
+        } else if (failed) {
+          alert('Could not read the selected files.');
+        }
+        input.value = '';
+      };
+
       files.forEach((file) => {
         const reader = new FileReader();
         reader.onerror = () => {
+          failed += 1;
           remaining -= 1;
-          alert(`Failed to read file: ${file.name}`);
-          if (remaining <= 0) input.value = '';
+          finishIfDone();
         };
         reader.onload = function(e) {
-          const ok = persistAttachment({
+          pending.push({
             id: newAttachmentId(),
             eventId,
             kind: 'file',
             fileName: file.name,
-            fileType: file.type,
+            fileType: file.type || guessMimeFromName(file.name),
             dataUrl: e.target.result,
             createdAt: Date.now()
           });
           remaining -= 1;
-          if (ok) refreshAttachments(eventId);
-          if (remaining <= 0) input.value = '';
+          finishIfDone();
         };
         reader.readAsDataURL(file);
       });
+    }
+
+    function guessMimeFromName(name = '') {
+      const lower = name.toLowerCase();
+      if (lower.endsWith('.pdf')) return 'application/pdf';
+      if (lower.endsWith('.png')) return 'image/png';
+      if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+      if (lower.endsWith('.gif')) return 'image/gif';
+      if (lower.endsWith('.webp')) return 'image/webp';
+      if (lower.endsWith('.txt')) return 'text/plain';
+      return 'application/octet-stream';
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const parts = String(dataUrl || '').split(',');
+      if (parts.length < 2) throw new Error('Invalid file data');
+      const header = parts[0];
+      const data = parts.slice(1).join(',');
+      const mime = (header.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+      const isBase64 = /;base64/i.test(header);
+      if (isBase64) {
+        const binary = atob(data);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+      }
+      return new Blob([decodeURIComponent(data)], { type: mime });
+    }
+
+    function revokePreviewObjectUrl() {
+      const preview = document.getElementById('docPreviewContainer');
+      if (preview?.dataset.objectUrl) {
+        URL.revokeObjectURL(preview.dataset.objectUrl);
+        delete preview.dataset.objectUrl;
+      }
     }
 
     function openLinkModal(eventId) {
@@ -813,25 +871,86 @@
 
     function viewAttachment(attachmentId) {
       const res = getAllAttachments().find(a => a.id === attachmentId);
-      if (!res || res.kind !== 'file') return;
-
-      const preview = document.getElementById('docPreviewContainer');
-      document.getElementById('docModalTitle').innerText = res.fileName || 'Attachment';
-
-      if ((res.fileType || '').startsWith('image/')) {
-        preview.innerHTML = `<img src="${res.dataUrl}" class="max-w-full max-h-full rounded-lg object-contain">`;
-      } else if (res.fileType === 'application/pdf') {
-        preview.innerHTML = `<iframe src="${res.dataUrl}" class="w-full h-full rounded-lg"></iframe>`;
-      } else {
-        preview.innerHTML = `<a href="${res.dataUrl}" download="${escapeHtml(res.fileName || 'file')}" class="text-brand-500 underline">Download File</a>`;
+      if (!res) return;
+      if (res.kind === 'link') {
+        openLinkAttachment(attachmentId);
+        return;
+      }
+      if (!res.dataUrl) {
+        alert('This attachment has no file data. Please attach it again.');
+        return;
       }
 
-      document.getElementById('docModal').classList.remove('hidden');
+      revokePreviewObjectUrl();
+
+      const preview = document.getElementById('docPreviewContainer');
+      const openExternal = document.getElementById('docOpenExternal');
+      const downloadLink = document.getElementById('docDownloadLink');
+      document.getElementById('docModalTitle').innerText = res.fileName || 'Attachment';
+      preview.innerHTML = '';
+
+      try {
+        const blob = dataUrlToBlob(res.dataUrl);
+        const objectUrl = URL.createObjectURL(blob);
+        preview.dataset.objectUrl = objectUrl;
+
+        const type = res.fileType || blob.type || guessMimeFromName(res.fileName);
+        const fileName = res.fileName || 'file';
+
+        openExternal.href = objectUrl;
+        openExternal.classList.remove('hidden');
+        downloadLink.href = objectUrl;
+        downloadLink.download = fileName;
+        downloadLink.classList.remove('hidden');
+
+        if (type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = objectUrl;
+          img.alt = fileName;
+          img.className = 'max-w-full max-h-full rounded-lg object-contain';
+          preview.appendChild(img);
+        } else if (type === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+          const iframe = document.createElement('iframe');
+          iframe.src = objectUrl;
+          iframe.title = fileName;
+          iframe.className = 'w-full h-full min-h-[70vh] rounded-lg bg-white';
+          preview.appendChild(iframe);
+        } else if (type.startsWith('text/')) {
+          blob.text().then((text) => {
+            const pre = document.createElement('pre');
+            pre.className = 'w-full max-w-3xl text-xs text-slate-200 whitespace-pre-wrap break-words bg-slate-900/80 p-4 rounded-lg';
+            pre.textContent = text;
+            preview.appendChild(pre);
+          }).catch(() => {
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = fileName;
+            link.className = 'text-brand-500 underline text-sm';
+            link.textContent = `Download ${fileName}`;
+            preview.appendChild(link);
+          });
+        } else {
+          const wrap = document.createElement('div');
+          wrap.className = 'text-center space-y-3';
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = fileName;
+          link.className = 'inline-block text-brand-500 underline text-sm';
+          link.textContent = `Download ${fileName}`;
+          wrap.appendChild(link);
+          preview.appendChild(wrap);
+        }
+
+        document.getElementById('docModal').classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+        alert('Could not open this attachment. Please attach the file again.');
+      }
     }
 
     function openLinkAttachment(attachmentId) {
       const res = getAllAttachments().find(a => a.id === attachmentId);
-      if (!res || res.kind !== 'link' || !res.url) return;
+      if (!res || !res.url) return;
       window.open(res.url, '_blank', 'noopener,noreferrer');
     }
 
@@ -844,6 +963,10 @@
     }
 
     function closeDocModal() {
+      revokePreviewObjectUrl();
+      document.getElementById('docOpenExternal')?.classList.add('hidden');
+      document.getElementById('docDownloadLink')?.classList.add('hidden');
+      document.getElementById('docPreviewContainer').innerHTML = '';
       document.getElementById('docModal').classList.add('hidden');
     }
 
