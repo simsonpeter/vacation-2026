@@ -113,6 +113,10 @@
           <input type="text" id="eventLocation" placeholder="e.g. Brussels -> Fiumicino" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
         </div>
         <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Address</label>
+          <input type="text" id="eventAddress" placeholder="e.g. Piazza del Colosseo, 1, 00184 Roma RM, Italy" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Notes / Booking Refs</label>
           <textarea id="eventNotes" rows="2" placeholder="e.g. Booking ref, seat numbers, tips..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500"></textarea>
         </div>
@@ -150,6 +154,12 @@
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
           <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1">Location / Route</p>
           <p id="detailLocation" class="text-slate-100"></p>
+        </div>
+
+        <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+          <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1">Address</p>
+          <p id="detailAddress" class="text-slate-100 whitespace-pre-wrap"></p>
+          <a id="detailAddressMap" href="#" target="_blank" rel="noopener noreferrer" class="hidden inline-block mt-2 text-xs text-brand-500 hover:underline">Open in Maps</a>
         </div>
 
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
@@ -223,10 +233,10 @@
   <script>
     // Initial pre-loaded itinerary data
     const initialEvents = [
-      { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) ✈️ Fiumicino (FCO)', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
-      { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', notes: 'Arrive 25 mins early for security checks.' },
-      { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
-      { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) ✈️ Brussels (BRU)', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
+      { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) ✈️ Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
+      { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', address: 'Piazza del Colosseo, 1, 00184 Roma RM, Italy', notes: 'Arrive 25 mins early for security checks.' },
+      { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', address: 'Piazza dei Miracoli, 56126 Pisa PI, Italy', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
+      { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) ✈️ Brussels (BRU)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
     ];
 
     let currentFilter = 'UPCOMING';
@@ -532,8 +542,9 @@
               </div>
             </div>
 
-            ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1">📍 <span>${ev.location}</span></p>` : ''}
-            ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg line-clamp-2">${ev.notes}</p>` : ''}
+            ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1">📍 <span>${escapeHtml(ev.location)}</span></p>` : ''}
+            ${ev.address ? `<p class="text-xs text-slate-400 flex items-start gap-1">🏠 <span class="line-clamp-2">${escapeHtml(ev.address)}</span></p>` : ''}
+            ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg line-clamp-2">${escapeHtml(ev.notes)}</p>` : ''}
 
             <!-- Attachments Section -->
             <div class="pt-2 border-t border-slate-700/50 space-y-2" id="voucher-section-${ev.id}" onclick="event.stopPropagation()">
@@ -565,6 +576,7 @@
         document.getElementById('eventTime').value = editingEvent.time;
         document.getElementById('eventEndTime').value = editingEvent.endTime || '';
         document.getElementById('eventLocation').value = editingEvent.location || '';
+        document.getElementById('eventAddress').value = editingEvent.address || '';
         document.getElementById('eventNotes').value = editingEvent.notes || '';
       } else {
         document.getElementById('modalTitle').innerText = 'Add New Event';
@@ -590,6 +602,7 @@
         time: document.getElementById('eventTime').value,
         endTime: document.getElementById('eventEndTime').value,
         location: document.getElementById('eventLocation').value,
+        address: document.getElementById('eventAddress').value,
         notes: document.getElementById('eventNotes').value
       };
 
@@ -633,6 +646,15 @@
         ? `${ev.time} – ${ev.endTime}`
         : ev.time;
       document.getElementById('detailLocation').innerText = ev.location || 'No location set';
+      document.getElementById('detailAddress').innerText = ev.address || 'No address set';
+      const mapLink = document.getElementById('detailAddressMap');
+      if (ev.address && ev.address.trim()) {
+        mapLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address.trim())}`;
+        mapLink.classList.remove('hidden');
+      } else {
+        mapLink.href = '#';
+        mapLink.classList.add('hidden');
+      }
       document.getElementById('detailNotes').innerText = ev.notes || 'No notes';
       document.getElementById('detailVoucherStatus').innerHTML = `<span class="text-xs text-slate-500">Loading...</span>`;
       document.getElementById('eventDetailModal').classList.remove('hidden');
