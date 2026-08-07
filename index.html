@@ -362,6 +362,19 @@
         const existing = JSON.parse(localStorage.getItem('vacation_events') || '[]');
         if (!Array.isArray(existing) || existing.length === 0) {
           localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
+        } else {
+          // Backfill address on known starter events if missing
+          const seedById = Object.fromEntries(initialEvents.map(e => [e.id, e]));
+          let changed = false;
+          const merged = existing.map(ev => {
+            const seed = seedById[ev.id];
+            if (seed?.address && !ev.address) {
+              changed = true;
+              return { ...ev, address: seed.address };
+            }
+            return ev;
+          });
+          if (changed) localStorage.setItem('vacation_events', JSON.stringify(merged));
         }
       } catch {
         localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
