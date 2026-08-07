@@ -60,6 +60,7 @@
     <div class="flex space-x-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/40 overflow-x-auto w-fit max-w-full">
       <button onclick="filterCategory('FLIGHT')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-FLIGHT">✈️ Flights</button>
       <button onclick="filterCategory('TRAIN')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-TRAIN">🚆 Trains</button>
+      <button onclick="filterCategory('STAY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-STAY">🏨 Stays</button>
       <button onclick="filterCategory('ACTIVITY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-ACTIVITY">🏛️ Sights</button>
     </div>
 
@@ -85,36 +86,45 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-xs font-medium text-slate-400 mb-1">Type</label>
-            <select id="eventType" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+            <select id="eventType" onchange="updateFormForType()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
               <option value="FLIGHT">✈️ Flight</option>
               <option value="TRAIN">🚆 Train</option>
               <option value="BUS">🚌 Bus</option>
               <option value="ACTIVITY">🏛️ Activity/Sight</option>
-              <option value="HOTEL">🏨 Hotel</option>
+              <option value="STAY">🏨 Stay (Hotel / Airbnb)</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Date</label>
+            <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventDate">Date</label>
             <input type="date" id="eventDate" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="endDateRow">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventEndDate">Check-out Date</label>
+            <input type="date" id="eventEndDate" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+          <div class="flex items-end pb-0.5">
+            <p id="stayHint" class="text-[11px] text-slate-500 leading-snug">For Hotel / Airbnb stays, set check-in and check-out.</p>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Start Time</label>
+            <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventTime">Start Time</label>
             <input type="time" id="eventTime" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">End / Return Time (Optional)</label>
+            <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventEndTime">End / Return Time (Optional)</label>
             <input type="time" id="eventEndTime" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
           </div>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Location / Route</label>
+          <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventLocation">Location / Route</label>
           <input type="text" id="eventLocation" placeholder="e.g. Brussels -> Fiumicino" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Address</label>
-          <input type="text" id="eventAddress" placeholder="e.g. Piazza del Colosseo, 1, 00184 Roma RM, Italy" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventAddress">Address</label>
+          <input type="text" id="eventAddress" placeholder="e.g. full street address for Hotel / Airbnb" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Notes / Booking Refs</label>
@@ -142,11 +152,11 @@
       <div class="space-y-3 text-sm">
         <div class="grid grid-cols-2 gap-3">
           <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-            <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1">Date</p>
+            <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1" id="detailDateLabel">Date</p>
             <p id="detailDate" class="text-slate-100 font-medium"></p>
           </div>
           <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-            <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1">Time</p>
+            <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1" id="detailTimeLabel">Time</p>
             <p id="detailTime" class="text-slate-100 font-medium"></p>
           </div>
         </div>
@@ -234,6 +244,7 @@
     // Initial pre-loaded itinerary data
     const initialEvents = [
       { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) ✈️ Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
+      { id: 'stay-rome', title: 'Rome Airbnb Stay', type: 'STAY', date: '2026-08-10', time: '15:00', endDate: '2026-08-15', endTime: '11:00', location: 'Airbnb — Centro Storico', address: 'Via dei Serpenti, 00184 Roma RM, Italy', notes: 'Check-in after 15:00. Self check-in with lockbox code in confirmation email.' },
       { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', address: 'Piazza del Colosseo, 1, 00184 Roma RM, Italy', notes: 'Arrive 25 mins early for security checks.' },
       { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', address: 'Piazza dei Miracoli, 56126 Pisa PI, Italy', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
       { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) ✈️ Brussels (BRU)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
@@ -363,17 +374,32 @@
         if (!Array.isArray(existing) || existing.length === 0) {
           localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
         } else {
-          // Backfill address on known starter events if missing
+          // Backfill address / stay seed data on known starter events if missing
           const seedById = Object.fromEntries(initialEvents.map(e => [e.id, e]));
           let changed = false;
           const merged = existing.map(ev => {
             const seed = seedById[ev.id];
+            let next = ev;
             if (seed?.address && !ev.address) {
               changed = true;
-              return { ...ev, address: seed.address };
+              next = { ...next, address: seed.address };
             }
-            return ev;
+            if (ev.type === 'HOTEL') {
+              changed = true;
+              next = { ...next, type: 'STAY' };
+            }
+            return next;
           });
+
+          // Ensure the Rome stay exists for existing users
+          if (!merged.some(e => e.id === 'stay-rome')) {
+            const stay = seedById['stay-rome'];
+            if (stay) {
+              merged.push(stay);
+              changed = true;
+            }
+          }
+
           if (changed) localStorage.setItem('vacation_events', JSON.stringify(merged));
         }
       } catch {
@@ -381,6 +407,7 @@
       }
 
       await migrateFromIndexedDB();
+      updateFormForType();
       renderTimeline();
     }
 
@@ -417,8 +444,13 @@
       TRAIN: '🚆',
       BUS: '🚌',
       ACTIVITY: '🏛️',
+      STAY: '🏨',
       HOTEL: '🏨'
     };
+
+    function isStayType(ev) {
+      return ev?.type === 'STAY' || ev?.type === 'HOTEL';
+    }
 
     function getTodayDate() {
       const d = new Date();
@@ -444,10 +476,27 @@
     function isUpcomingEvent(ev) {
       if (!ev || !ev.date) return false;
       const today = getTodayDate();
+      const nowTime = getNowTime();
+
+      // Stays stay visible until check-out ends
+      if (isStayType(ev) && ev.endDate) {
+        if (ev.endDate > today) return true;
+        if (ev.endDate < today) return false;
+        return padTime(ev.endTime || '23:59') >= nowTime;
+      }
+
       // String compare YYYY-MM-DD — avoids Invalid Date / timezone traps
       if (ev.date > today) return true;
       if (ev.date < today) return false;
-      return padTime(ev.time) >= getNowTime();
+      return padTime(ev.time) >= nowTime;
+    }
+
+    function isTodayEvent(ev) {
+      const today = getTodayDate();
+      if (isStayType(ev) && ev.endDate) {
+        return ev.date <= today && ev.endDate >= today;
+      }
+      return ev.date === today;
     }
 
     function sortEvents(events) {
@@ -459,13 +508,14 @@
     }
 
     function filterEvents(events) {
-      const today = getTodayDate();
       switch (currentFilter) {
         case 'TODAY':
-          return events.filter(e => e.date === today);
+          return events.filter(isTodayEvent);
         case 'UPCOMING':
-          // Future (and not-yet-started today) only — never past events
+          // Future / active events only — never finished past events
           return events.filter(isUpcomingEvent);
+        case 'STAY':
+          return events.filter(isStayType);
         case 'FLIGHT':
         case 'TRAIN':
         case 'BUS':
@@ -476,6 +526,28 @@
         default:
           return events;
       }
+    }
+
+    function updateFormForType() {
+      const type = document.getElementById('eventType').value;
+      const stay = type === 'STAY' || type === 'HOTEL';
+      const endDateRow = document.getElementById('endDateRow');
+      const endDateInput = document.getElementById('eventEndDate');
+
+      document.getElementById('labelEventDate').innerText = stay ? 'Check-in Date' : 'Date';
+      document.getElementById('labelEventTime').innerText = stay ? 'Check-in Time' : 'Start Time';
+      document.getElementById('labelEventEndTime').innerText = stay ? 'Check-out Time' : 'End / Return Time (Optional)';
+      document.getElementById('labelEventLocation').innerText = stay ? 'Property / Stay Name' : 'Location / Route';
+      document.getElementById('labelEventAddress').innerText = stay ? 'Stay Address' : 'Address';
+      document.getElementById('eventLocation').placeholder = stay
+        ? 'e.g. Airbnb near Colosseum'
+        : 'e.g. Brussels -> Fiumicino';
+      document.getElementById('eventAddress').placeholder = stay
+        ? 'Full street address of hotel / Airbnb'
+        : 'e.g. Piazza del Colosseo, 1, 00184 Roma RM, Italy';
+
+      if (endDateRow) endDateRow.classList.toggle('hidden', !stay);
+      if (endDateInput) endDateInput.required = stay;
     }
 
     function formatDayLabel(dateStr) {
@@ -545,9 +617,11 @@
             <div class="flex items-start justify-between">
               <div>
                 <span class="inline-block text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-0.5 rounded bg-brand-500/10 mb-1">
-                  ${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}
+                  ${isStayType(ev) && ev.endDate
+                    ? `${ev.date} ${ev.time || ''} → ${ev.endDate} ${ev.endTime || ''}`.trim()
+                    : `${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}`}
                 </span>
-                <h3 class="font-semibold text-slate-100 text-base">${ev.title}</h3>
+                <h3 class="font-semibold text-slate-100 text-base">${escapeHtml(ev.title)}</h3>
               </div>
               <div class="flex items-center space-x-1" onclick="event.stopPropagation()">
                 <button onclick="editEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-slate-200 p-1">✏️</button>
@@ -556,7 +630,7 @@
             </div>
 
             ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1">📍 <span>${escapeHtml(ev.location)}</span></p>` : ''}
-            ${ev.address ? `<p class="text-xs text-slate-400 flex items-start gap-1">🏠 <span class="line-clamp-2">${escapeHtml(ev.address)}</span></p>` : ''}
+            ${ev.address ? `<p class="text-xs ${isStayType(ev) ? 'text-slate-200' : 'text-slate-400'} flex items-start gap-1">🏠 <span class="line-clamp-2">${escapeHtml(ev.address)}</span></p>` : ''}
             ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg line-clamp-2">${escapeHtml(ev.notes)}</p>` : ''}
 
             <!-- Attachments Section -->
@@ -584,8 +658,10 @@
         document.getElementById('modalTitle').innerText = 'Edit Event';
         document.getElementById('eventId').value = editingEvent.id;
         document.getElementById('eventTitle').value = editingEvent.title;
-        document.getElementById('eventType').value = editingEvent.type;
+        // Migrate legacy HOTEL type into STAY in the form
+        document.getElementById('eventType').value = editingEvent.type === 'HOTEL' ? 'STAY' : editingEvent.type;
         document.getElementById('eventDate').value = editingEvent.date;
+        document.getElementById('eventEndDate').value = editingEvent.endDate || '';
         document.getElementById('eventTime').value = editingEvent.time;
         document.getElementById('eventEndTime').value = editingEvent.endTime || '';
         document.getElementById('eventLocation').value = editingEvent.location || '';
@@ -596,6 +672,7 @@
         document.getElementById('eventForm').reset();
         document.getElementById('eventId').value = '';
       }
+      updateFormForType();
     }
 
     function closeModal() {
@@ -612,6 +689,7 @@
         title: document.getElementById('eventTitle').value,
         type: document.getElementById('eventType').value,
         date: document.getElementById('eventDate').value,
+        endDate: document.getElementById('eventEndDate').value,
         time: document.getElementById('eventTime').value,
         endTime: document.getElementById('eventEndTime').value,
         location: document.getElementById('eventLocation').value,
@@ -644,7 +722,8 @@
       TRAIN: '🚆 Train',
       BUS: '🚌 Bus',
       ACTIVITY: '🏛️ Activity/Sight',
-      HOTEL: '🏨 Hotel'
+      STAY: '🏨 Stay (Hotel / Airbnb)',
+      HOTEL: '🏨 Stay (Hotel / Airbnb)'
     };
 
     function openEventDetail(id) {
@@ -654,10 +733,26 @@
       currentDetailEventId = id;
       document.getElementById('detailTypeBadge').innerText = typeLabels[ev.type] || ev.type;
       document.getElementById('detailTitle').innerText = ev.title;
-      document.getElementById('detailDate').innerText = ev.date;
-      document.getElementById('detailTime').innerText = ev.endTime
-        ? `${ev.time} – ${ev.endTime}`
-        : ev.time;
+
+      if (isStayType(ev)) {
+        document.getElementById('detailDateLabel').innerText = 'Check-in → Check-out';
+        document.getElementById('detailTimeLabel').innerText = 'Times';
+        document.getElementById('detailDate').innerText = ev.endDate
+          ? `${ev.date} → ${ev.endDate}`
+          : ev.date;
+        document.getElementById('detailTime').innerText = [
+          ev.time ? `In ${ev.time}` : null,
+          ev.endTime ? `Out ${ev.endTime}` : null
+        ].filter(Boolean).join(' · ') || '—';
+      } else {
+        document.getElementById('detailDateLabel').innerText = 'Date';
+        document.getElementById('detailTimeLabel').innerText = 'Time';
+        document.getElementById('detailDate').innerText = ev.date;
+        document.getElementById('detailTime').innerText = ev.endTime
+          ? `${ev.time} – ${ev.endTime}`
+          : ev.time;
+      }
+
       document.getElementById('detailLocation').innerText = ev.location || 'No location set';
       document.getElementById('detailAddress').innerText = ev.address || 'No address set';
       const mapLink = document.getElementById('detailAddressMap');
