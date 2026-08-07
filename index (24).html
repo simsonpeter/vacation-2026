@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vacation Dashboard 2026</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#3b82f6', 600: '#2563eb' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="text-2xl">🇮🇹</span>
+        <div>
+          <h1 class="font-bold text-lg leading-tight">Summer Vacation 2026</h1>
+          <p class="text-xs text-slate-400">Rome & Pisa | Aug 10 - Aug 15</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="exportData()" title="Backup / Export Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300">
+          📥 Export
+        </button>
+        <label title="Restore / Import Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 cursor-pointer">
+          📤 Import
+          <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event)">
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter & Actions Bar -->
+  <main class="flex-1 max-w-3xl w-full mx-auto p-4 space-y-4 pb-24">
+    <div class="flex items-center justify-between gap-2 overflow-x-auto pb-1">
+      <div class="flex space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700/50">
+        <button onclick="filterCategory('ALL')" class="filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition bg-brand-600 text-white" id="filter-ALL">All</button>
+        <button onclick="filterCategory('FLIGHT')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition" id="filter-FLIGHT">✈️ Flights</button>
+        <button onclick="filterCategory('TRAIN')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition" id="filter-TRAIN">🚆 Trains</button>
+        <button onclick="filterCategory('ACTIVITY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition" id="filter-ACTIVITY">🏛️ Sights</button>
+      </div>
+      
+      <button onclick="openModal()" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-semibold text-white shadow-lg shadow-brand-500/20 whitespace-nowrap">
+        + Add Event
+      </button>
+    </div>
+
+    <!-- Timeline Container -->
+    <div id="timeline" class="space-y-4 relative before:absolute before:inset-0 before:left-4 before:w-0.5 before:bg-slate-800">
+      <!-- Injected by JavaScript -->
+    </div>
+  </main>
+
+  <!-- Add/Edit Event Modal -->
+  <div id="eventModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg" id="modalTitle">Add New Event</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+      <form id="eventForm" onsubmit="saveEvent(event)" class="space-y-3">
+        <input type="hidden" id="eventId">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Title</label>
+          <input type="text" id="eventTitle" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Type</label>
+            <select id="eventType" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+              <option value="FLIGHT">✈️ Flight</option>
+              <option value="TRAIN">🚆 Train</option>
+              <option value="BUS">🚌 Bus</option>
+              <option value="ACTIVITY">🏛️ Activity/Sight</option>
+              <option value="HOTEL">🏨 Hotel</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Date</label>
+            <input type="date" id="eventDate" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Start Time</label>
+            <input type="time" id="eventTime" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">End / Return Time (Optional)</label>
+            <input type="time" id="eventEndTime" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Location / Route</label>
+          <input type="text" id="eventLocation" placeholder="e.g. Brussels -> Fiumicino" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Notes / Booking Refs</label>
+          <textarea id="eventNotes" rows="2" placeholder="e.g. Booking ref, seat numbers, tips..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500"></textarea>
+        </div>
+        <div class="flex justify-end space-x-2 pt-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Save Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div id="docModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex flex-col hidden">
+    <div class="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800">
+      <h3 class="font-bold text-sm" id="docModalTitle">Voucher Preview</h3>
+      <button onclick="closeDocModal()" class="text-slate-400 hover:text-white font-bold text-lg">&times;</button>
+    </div>
+    <div class="flex-1 p-2 flex items-center justify-center overflow-auto" id="docPreviewContainer">
+      <!-- Rendered image or iframe -->
+    </div>
+  </div>
+
+  <!-- IndexedDB & App Script -->
+  <script>
+    // Initial pre-loaded itinerary data
+    const initialEvents = [
+      { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) ✈️ Fiumicino (FCO)', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
+      { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', notes: 'Arrive 25 mins early for security checks.' },
+      { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
+      { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) ✈️ Brussels (BRU)', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
+    ];
+
+    let currentFilter = 'ALL';
+    let db;
+
+    // Open IndexedDB
+    const request = indexedDB.open('VacationAppDB', 1);
+    request.onupgradeneeded = (e) => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains('vouchers')) {
+        db.createObjectStore('vouchers', { keyPath: 'eventId' });
+      }
+    };
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      initApp();
+    };
+
+    function initApp() {
+      if (!localStorage.getItem('vacation_events')) {
+        localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
+      }
+      renderTimeline();
+    }
+
+    function getEvents() {
+      return JSON.parse(localStorage.getItem('vacation_events') || '[]');
+    }
+
+    function saveEvents(events) {
+      localStorage.setItem('vacation_events', JSON.stringify(events));
+      renderTimeline();
+    }
+
+    const typeIcons = {
+      FLIGHT: '✈️',
+      TRAIN: '🚆',
+      BUS: '🚌',
+      ACTIVITY: '🏛️',
+      HOTEL: '🏨'
+    };
+
+    function renderTimeline() {
+      const events = getEvents().sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const timeline = document.getElementById('timeline');
+      timeline.innerHTML = '';
+
+      const filtered = currentFilter === 'ALL' ? events : events.filter(e => e.type === currentFilter);
+
+      if (filtered.length === 0) {
+        timeline.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">No events found in this category.</p>`;
+        return;
+      }
+
+      filtered.forEach(ev => {
+        const item = document.createElement('div');
+        item.className = 'relative pl-8 group';
+
+        item.innerHTML = `
+          <!-- Category Dot -->
+          <div class="absolute left-1.5 top-1.5 w-5 h-5 rounded-full bg-slate-800 border-2 border-brand-500 flex items-center justify-center text-[10px]">
+            ${typeIcons[ev.type] || '📌'}
+          </div>
+
+          <!-- Card Content -->
+          <div class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl p-4 transition space-y-2">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="inline-block text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-0.5 rounded bg-brand-500/10 mb-1">
+                  ${ev.date} • ${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}
+                </span>
+                <h3 class="font-semibold text-slate-100 text-base">${ev.title}</h3>
+              </div>
+              <div class="flex items-center space-x-1">
+                <button onclick="editEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-slate-200 p-1">✏️</button>
+                <button onclick="deleteEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-red-400 p-1">🗑️</button>
+              </div>
+            </div>
+
+            ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1">📍 <span>${ev.location}</span></p>` : ''}
+            ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg">${ev.notes}</p>` : ''}
+
+            <!-- Voucher Attachment Section -->
+            <div class="pt-2 border-t border-slate-700/50 flex items-center justify-between" id="voucher-section-${ev.id}">
+              <div id="voucher-status-${ev.id}" class="text-xs text-slate-400">Loading attachment...</div>
+              <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
+                📎 Attach
+                <input type="file" class="hidden" accept="image/*,application/pdf" onchange="uploadVoucher('${ev.id}', event)">
+              </label>
+            </div>
+          </div>
+        `;
+        timeline.appendChild(item);
+        checkVoucherStatus(ev.id);
+      });
+    }
+
+    // Modal controls
+    function openModal(editingEvent = null) {
+      document.getElementById('eventModal').classList.remove('hidden');
+      if (editingEvent) {
+        document.getElementById('modalTitle').innerText = 'Edit Event';
+        document.getElementById('eventId').value = editingEvent.id;
+        document.getElementById('eventTitle').value = editingEvent.title;
+        document.getElementById('eventType').value = editingEvent.type;
+        document.getElementById('eventDate').value = editingEvent.date;
+        document.getElementById('eventTime').value = editingEvent.time;
+        document.getElementById('eventEndTime').value = editingEvent.endTime || '';
+        document.getElementById('eventLocation').value = editingEvent.location || '';
+        document.getElementById('eventNotes').value = editingEvent.notes || '';
+      } else {
+        document.getElementById('modalTitle').innerText = 'Add New Event';
+        document.getElementById('eventForm').reset();
+        document.getElementById('eventId').value = '';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('eventModal').classList.add('hidden');
+    }
+
+    function saveEvent(e) {
+      e.preventDefault();
+      const events = getEvents();
+      const id = document.getElementById('eventId').value || Date.now().toString();
+
+      const newEv = {
+        id,
+        title: document.getElementById('eventTitle').value,
+        type: document.getElementById('eventType').value,
+        date: document.getElementById('eventDate').value,
+        time: document.getElementById('eventTime').value,
+        endTime: document.getElementById('eventEndTime').value,
+        location: document.getElementById('eventLocation').value,
+        notes: document.getElementById('eventNotes').value
+      };
+
+      const index = events.findIndex(x => x.id === id);
+      if (index >= 0) events[index] = newEv;
+      else events.push(newEv);
+
+      saveEvents(events);
+      closeModal();
+    }
+
+    function editEvent(id) {
+      const ev = getEvents().find(x => x.id === id);
+      if (ev) openModal(ev);
+    }
+
+    function deleteEvent(id) {
+      if (!confirm('Are you sure you want to delete this event?')) return;
+      saveEvents(getEvents().filter(x => x.id !== id));
+      deleteVoucherFromDB(id);
+    }
+
+    function filterCategory(cat) {
+      currentFilter = cat;
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('bg-brand-600', 'text-white');
+        b.classList.add('text-slate-400');
+      });
+      const activeBtn = document.getElementById(`filter-${cat}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-brand-600', 'text-white');
+        activeBtn.classList.remove('text-slate-400');
+      }
+      renderTimeline();
+    }
+
+    // Voucher Handling via IndexedDB
+    function uploadVoucher(eventId, event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const tx = db.transaction('vouchers', 'readwrite');
+        tx.objectStore('vouchers').put({
+          eventId,
+          fileName: file.name,
+          fileType: file.type,
+          dataUrl: e.target.result
+        });
+        tx.oncomplete = () => checkVoucherStatus(eventId);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function checkVoucherStatus(eventId) {
+      if (!db) return;
+      const tx = db.transaction('vouchers', 'readonly');
+      const req = tx.objectStore('vouchers').get(eventId);
+      req.onsuccess = () => {
+        const res = req.result;
+        const container = document.getElementById(`voucher-status-${eventId}`);
+        if (!container) return;
+
+        if (res) {
+          container.innerHTML = `
+            <button onclick="viewVoucher('${eventId}')" class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1">
+              📄 View Voucher (${res.fileName})
+            </button>
+          `;
+        } else {
+          container.innerHTML = `<span class="text-xs text-slate-500">No ticket uploaded</span>`;
+        }
+      };
+    }
+
+    function viewVoucher(eventId) {
+      const tx = db.transaction('vouchers', 'readonly');
+      const req = tx.objectStore('vouchers').get(eventId);
+      req.onsuccess = () => {
+        const res = req.result;
+        if (!res) return;
+
+        const preview = document.getElementById('docPreviewContainer');
+        document.getElementById('docModalTitle').innerText = res.fileName;
+
+        if (res.fileType.startsWith('image/')) {
+          preview.innerHTML = `<img src="${res.dataUrl}" class="max-w-full max-h-full rounded-lg object-contain">`;
+        } else if (res.fileType === 'application/pdf') {
+          preview.innerHTML = `<iframe src="${res.dataUrl}" class="w-full h-full rounded-lg"></iframe>`;
+        } else {
+          preview.innerHTML = `<a href="${res.dataUrl}" download="${res.fileName}" class="text-brand-500 underline">Download Ticket File</a>`;
+        }
+
+        document.getElementById('docModal').classList.remove('hidden');
+      };
+    }
+
+    function closeDocModal() {
+      document.getElementById('docModal').classList.add('hidden');
+    }
+
+    function deleteVoucherFromDB(eventId) {
+      if (!db) return;
+      const tx = db.transaction('vouchers', 'readwrite');
+      tx.objectStore('vouchers').delete(eventId);
+    }
+
+    // Export & Import Data Backup
+    async function exportData() {
+      const events = getEvents();
+      const tx = db.transaction('vouchers', 'readonly');
+      const req = tx.objectStore('vouchers').getAll();
+
+      req.onsuccess = () => {
+        const vouchers = req.result;
+        const payload = JSON.stringify({ events, vouchers }, null, 2);
+        const blob = new Blob([payload], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `vacation_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+      };
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (data.events) {
+            localStorage.setItem('vacation_events', JSON.stringify(data.events));
+          }
+          if (data.vouchers && Array.isArray(data.vouchers)) {
+            const tx = db.transaction('vouchers', 'readwrite');
+            data.vouchers.forEach(v => tx.objectStore('vouchers').put(v));
+          }
+          alert('Data and vouchers restored successfully!');
+          renderTimeline();
+        } catch (err) {
+          alert('Invalid backup file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
