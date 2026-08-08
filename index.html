@@ -28,6 +28,173 @@
       }
     }
   </script>
+  <style>
+    :root,
+    [data-theme="midnight"] {
+      --brand-500: #3b82f6;
+      --brand-600: #2563eb;
+      --app-bg: #0f172a;
+      --app-header: rgba(15, 23, 42, 0.82);
+      --app-surface: #1e293b;
+      --app-surface-2: #334155;
+      --app-card: rgba(30, 41, 59, 0.62);
+      --app-border: #334155;
+      --app-text: #f1f5f9;
+      --app-text-soft: #cbd5e1;
+      --app-muted: #94a3b8;
+      --app-overlay: rgba(2, 6, 23, 0.82);
+      --app-timeline: #1e293b;
+      --app-input: #1e293b;
+      --theme-mode: dark;
+    }
+
+    [data-theme="tyrrhenian"] {
+      --brand-500: #2dd4bf;
+      --brand-600: #0f766e;
+      --app-bg: #042f2e;
+      --app-header: rgba(4, 47, 46, 0.88);
+      --app-surface: #115e59;
+      --app-surface-2: #0f766e;
+      --app-card: rgba(17, 94, 89, 0.55);
+      --app-border: #134e4a;
+      --app-text: #f0fdfa;
+      --app-text-soft: #ccfbf1;
+      --app-muted: #99f6e4;
+      --app-overlay: rgba(2, 44, 34, 0.82);
+      --app-timeline: #115e59;
+      --app-input: #115e59;
+      --theme-mode: dark;
+    }
+
+    [data-theme="vespa"] {
+      --brand-500: #0284c7;
+      --brand-600: #0369a1;
+      --app-bg: #eef6fb;
+      --app-header: rgba(238, 246, 251, 0.9);
+      --app-surface: #ffffff;
+      --app-surface-2: #dbeafe;
+      --app-card: rgba(255, 255, 255, 0.92);
+      --app-border: #bfdbfe;
+      --app-text: #0f172a;
+      --app-text-soft: #1e293b;
+      --app-muted: #475569;
+      --app-overlay: rgba(15, 23, 42, 0.45);
+      --app-timeline: #cbd5e1;
+      --app-input: #f8fafc;
+      --theme-mode: light;
+    }
+
+    [data-theme="travertine"] {
+      --brand-500: #0f766e;
+      --brand-600: #115e59;
+      --app-bg: #f3efe6;
+      --app-header: rgba(243, 239, 230, 0.92);
+      --app-surface: #fffaf2;
+      --app-surface-2: #e7e0d2;
+      --app-card: rgba(255, 250, 242, 0.95);
+      --app-border: #d6d0c2;
+      --app-text: #1c1917;
+      --app-text-soft: #292524;
+      --app-muted: #57534e;
+      --app-overlay: rgba(28, 25, 23, 0.45);
+      --app-timeline: #d6d0c2;
+      --app-input: #fffaf2;
+      --theme-mode: light;
+    }
+
+    [data-theme="nightmarket"] {
+      --brand-500: #f59e0b;
+      --brand-600: #d97706;
+      --app-bg: #09090b;
+      --app-header: rgba(9, 9, 11, 0.9);
+      --app-surface: #18181b;
+      --app-surface-2: #27272a;
+      --app-card: rgba(24, 24, 27, 0.85);
+      --app-border: #3f3f46;
+      --app-text: #fafafa;
+      --app-text-soft: #e4e4e7;
+      --app-muted: #a1a1aa;
+      --app-overlay: rgba(0, 0, 0, 0.78);
+      --app-timeline: #27272a;
+      --app-input: #18181b;
+      --theme-mode: dark;
+    }
+
+    html, body {
+      background: var(--app-bg) !important;
+      color: var(--app-text) !important;
+    }
+
+    .bg-brand-500 { background-color: var(--brand-500) !important; }
+    .bg-brand-600 { background-color: var(--brand-600) !important; }
+    .hover\:bg-brand-500:hover { background-color: var(--brand-500) !important; }
+    .text-brand-500 { color: var(--brand-500) !important; }
+    .border-brand-500 { border-color: var(--brand-500) !important; }
+    .bg-brand-500\/10 { background-color: color-mix(in srgb, var(--brand-500) 12%, transparent) !important; }
+    .shadow-brand-500\/20 { --tw-shadow-color: color-mix(in srgb, var(--brand-500) 20%, transparent) !important; }
+    .selection\:bg-brand-500 *::selection,
+    .selection\:bg-brand-500::selection { background-color: var(--brand-500) !important; }
+
+    header.sticky {
+      background: var(--app-header) !important;
+      border-color: var(--app-border) !important;
+    }
+
+    .bg-slate-950\/80,
+    .bg-slate-950\/90 { background-color: var(--app-overlay) !important; }
+
+    .bg-slate-900,
+    .bg-slate-900\/80,
+    .bg-slate-900\/40 { background-color: var(--app-bg) !important; }
+
+    .bg-slate-800,
+    .bg-slate-800\/60,
+    .bg-slate-800\/50 { background-color: var(--app-surface) !important; }
+
+    .bg-slate-700,
+    .hover\:bg-slate-700:hover,
+    .hover\:bg-slate-600:hover { background-color: var(--app-surface-2) !important; }
+
+    .border-slate-800,
+    .border-slate-700,
+    .border-slate-700\/60,
+    .border-slate-700\/50,
+    .border-slate-700\/40,
+    .border-slate-600 { border-color: var(--app-border) !important; }
+
+    .text-slate-100 { color: var(--app-text) !important; }
+    .text-slate-200,
+    .text-slate-300 { color: var(--app-text-soft) !important; }
+    .text-slate-400,
+    .text-slate-500 { color: var(--app-muted) !important; }
+    .bg-brand-600,
+    .bg-brand-500,
+    .bg-brand-600 .text-white,
+    .bg-brand-500 .text-white { color: #fff !important; }
+
+    #timeline::before,
+    #timeline.relative::before { background-color: var(--app-timeline) !important; }
+
+    input, select, textarea {
+      background-color: var(--app-input) !important;
+      color: var(--app-text) !important;
+      border-color: var(--app-border) !important;
+    }
+
+    .theme-swatch {
+      width: 100%;
+      border-radius: 0.9rem;
+      border: 1px solid var(--app-border);
+      padding: 0.7rem;
+      text-align: left;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .theme-swatch:hover { transform: translateY(-1px); }
+    .theme-swatch.active {
+      outline: 2px solid var(--brand-500);
+      outline-offset: 2px;
+    }
+  </style>
 </head>
 <body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
 
@@ -45,11 +212,14 @@
         <button id="installAppBtn" onclick="installPwa()" title="Install app" class="hidden p-2 rounded-lg bg-brand-600 hover:bg-brand-500 border border-brand-500 text-xs text-white font-medium">
           Install
         </button>
+        <button onclick="openSettingsModal()" title="Themes & Sync" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300">
+          ⚙️
+        </button>
         <button onclick="exportData()" title="Backup / Export Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300">
-          📥 Export
+          📥
         </button>
         <label title="Restore / Import Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 cursor-pointer">
-          📤 Import
+          📤
           <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event)">
         </label>
       </div>
@@ -82,6 +252,68 @@
       <!-- Injected by JavaScript -->
     </div>
   </main>
+
+  <!-- Settings: Themes + Cloud Sync -->
+  <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5 space-y-5">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg">Themes & Sync</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+
+      <section class="space-y-3">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-100">Theme</h4>
+          <p class="text-xs text-slate-400 mt-0.5">Pick a look for your trip dashboard.</p>
+        </div>
+        <div id="themePicker" class="grid grid-cols-2 gap-2"></div>
+      </section>
+
+      <section class="space-y-3 border-t border-slate-800 pt-4">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-100">Online backup sync</h4>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Yes — sync the same backup JSON online via a private GitHub Gist, or pull from any raw JSON URL.
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-medium text-slate-400">GitHub token (gist scope)</label>
+          <input type="password" id="syncToken" autocomplete="off" placeholder="ghp_..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          <p class="text-[11px] text-slate-500">Stored only on this device. Create a fine-grained or classic token with <code class="text-slate-300">gist</code> access.</p>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-medium text-slate-400">Gist ID (filled after first upload)</label>
+          <input type="text" id="syncGistId" placeholder="optional existing gist id" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="pushBackupToGist()" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Upload / Sync up</button>
+          <button type="button" onclick="pullBackupFromGist()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200">Download / Sync down</button>
+        </div>
+        <p id="syncStatus" class="text-xs text-slate-400"></p>
+        <p id="syncGistLinkWrap" class="text-xs text-slate-400 hidden">
+          Gist: <a id="syncGistLink" href="#" target="_blank" rel="noopener noreferrer" class="text-brand-500 hover:underline break-all"></a>
+        </p>
+      </section>
+
+      <section class="space-y-3 border-t border-slate-800 pt-4">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-100">Restore from URL</h4>
+          <p class="text-xs text-slate-400 mt-0.5">Paste a raw JSON backup URL (Gist raw link, Dropbox direct link, etc.).</p>
+        </div>
+        <div class="flex gap-2">
+          <input type="url" id="syncUrl" placeholder="https://..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          <button type="button" onclick="pullBackupFromUrl()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 whitespace-nowrap">Pull</button>
+        </div>
+      </section>
+
+      <div class="flex justify-end pt-1">
+        <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Add/Edit Event Modal -->
   <div id="eventModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
@@ -1117,11 +1349,118 @@
       saveAllAttachments(getAllAttachments().filter(a => a.eventId !== eventId));
     }
 
+    // Themes
+    const THEME_KEY = 'vacation_theme';
+    const SYNC_TOKEN_KEY = 'vacation_sync_token';
+    const SYNC_GIST_KEY = 'vacation_sync_gist_id';
+    const THEMES = [
+      { id: 'midnight', name: 'Midnight', blurb: 'Current deep slate', preview: 'linear-gradient(135deg,#0f172a,#1e293b)' },
+      { id: 'tyrrhenian', name: 'Tyrrhenian', blurb: 'Sea-teal evening', preview: 'linear-gradient(135deg,#042f2e,#0f766e)' },
+      { id: 'vespa', name: 'Vespa', blurb: 'Bright azure day', preview: 'linear-gradient(135deg,#eef6fb,#7dd3fc)' },
+      { id: 'travertine', name: 'Travertine', blurb: 'Roman stone light', preview: 'linear-gradient(135deg,#f3efe6,#0f766e)' },
+      { id: 'nightmarket', name: 'Night Market', blurb: 'Ink + amber', preview: 'linear-gradient(135deg,#09090b,#d97706)' }
+    ];
+
+    function applyTheme(themeId) {
+      const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
+      document.documentElement.setAttribute('data-theme', theme.id);
+      document.documentElement.classList.toggle('dark', theme.id !== 'vespa' && theme.id !== 'travertine');
+      localStorage.setItem(THEME_KEY, theme.id);
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--app-bg').trim();
+        meta.setAttribute('content', bg || '#0f172a');
+      }
+      renderThemePicker();
+    }
+
+    function renderThemePicker() {
+      const root = document.getElementById('themePicker');
+      if (!root) return;
+      const active = localStorage.getItem(THEME_KEY) || 'midnight';
+      root.innerHTML = THEMES.map(theme => `
+        <button type="button" class="theme-swatch ${theme.id === active ? 'active' : ''}" onclick="applyTheme('${theme.id}')" style="background:${theme.preview}">
+          <span class="block text-xs font-semibold" style="color:${theme.id === 'vespa' || theme.id === 'travertine' ? '#0f172a' : '#f8fafc'}">${theme.name}</span>
+          <span class="block text-[11px] mt-0.5" style="color:${theme.id === 'vespa' || theme.id === 'travertine' ? '#334155' : '#cbd5e1'}">${theme.blurb}</span>
+        </button>
+      `).join('');
+    }
+
+    function openSettingsModal() {
+      document.getElementById('syncToken').value = localStorage.getItem(SYNC_TOKEN_KEY) || '';
+      document.getElementById('syncGistId').value = localStorage.getItem(SYNC_GIST_KEY) || '';
+      document.getElementById('syncStatus').textContent = '';
+      updateGistLink(localStorage.getItem(SYNC_GIST_KEY) || '');
+      renderThemePicker();
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function updateGistLink(gistId) {
+      const wrap = document.getElementById('syncGistLinkWrap');
+      const link = document.getElementById('syncGistLink');
+      if (!gistId) {
+        wrap.classList.add('hidden');
+        return;
+      }
+      link.href = `https://gist.github.com/${gistId}`;
+      link.textContent = `https://gist.github.com/${gistId}`;
+      wrap.classList.remove('hidden');
+    }
+
+    function setSyncStatus(message, isError = false) {
+      const el = document.getElementById('syncStatus');
+      if (!el) return;
+      el.textContent = message;
+      el.style.color = isError ? '#f87171' : '';
+    }
+
     // Export & Import Data Backup
+    function buildBackupPayload() {
+      return {
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        events: getEvents(),
+        attachments: getAllAttachments()
+      };
+    }
+
+    function applyBackupData(data, { silent = false } = {}) {
+      if (!data || typeof data !== 'object') throw new Error('Invalid backup');
+
+      if (data.events) {
+        localStorage.setItem('vacation_events', JSON.stringify(data.events));
+      }
+
+      const imported = [];
+      if (Array.isArray(data.attachments)) {
+        data.attachments.forEach(a => imported.push(a));
+      }
+      // Support older backups that only had a single voucher per event
+      if (Array.isArray(data.vouchers)) {
+        data.vouchers.forEach(v => {
+          imported.push({
+            id: v.id || `legacy-${v.eventId}`,
+            eventId: v.eventId,
+            kind: 'file',
+            fileName: v.fileName || 'Voucher',
+            fileType: v.fileType || 'application/octet-stream',
+            dataUrl: v.dataUrl || '',
+            createdAt: v.createdAt || Date.now()
+          });
+        });
+      }
+      if (imported.length) upsertAttachments(imported);
+
+      renderTimeline();
+      if (!silent) alert('Data and attachments restored successfully!');
+    }
+
     async function exportData() {
-      const events = getEvents();
-      const attachments = getAllAttachments();
-      const payload = JSON.stringify({ events, attachments }, null, 2);
+      const payload = JSON.stringify(buildBackupPayload(), null, 2);
       const blob = new Blob([payload], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1136,39 +1475,129 @@
       const reader = new FileReader();
       reader.onload = function(evt) {
         try {
-          const data = JSON.parse(evt.target.result);
-          if (data.events) {
-            localStorage.setItem('vacation_events', JSON.stringify(data.events));
-          }
-
-          const imported = [];
-          if (Array.isArray(data.attachments)) {
-            data.attachments.forEach(a => imported.push(a));
-          }
-          // Support older backups that only had a single voucher per event
-          if (Array.isArray(data.vouchers)) {
-            data.vouchers.forEach(v => {
-              imported.push({
-                id: v.id || `legacy-${v.eventId}`,
-                eventId: v.eventId,
-                kind: 'file',
-                fileName: v.fileName || 'Voucher',
-                fileType: v.fileType || 'application/octet-stream',
-                dataUrl: v.dataUrl || '',
-                createdAt: v.createdAt || Date.now()
-              });
-            });
-          }
-          if (imported.length) upsertAttachments(imported);
-
-          alert('Data and attachments restored successfully!');
-          renderTimeline();
+          applyBackupData(JSON.parse(evt.target.result));
         } catch (err) {
           alert('Invalid backup file.');
         }
       };
       reader.readAsText(file);
     }
+
+    async function pushBackupToGist() {
+      const token = document.getElementById('syncToken').value.trim();
+      let gistId = document.getElementById('syncGistId').value.trim();
+      if (!token) {
+        setSyncStatus('Add a GitHub token with gist access first.', true);
+        return;
+      }
+
+      localStorage.setItem(SYNC_TOKEN_KEY, token);
+      const bodyContent = JSON.stringify(buildBackupPayload(), null, 2);
+      // Rough size guard — large ticket PDFs can exceed practical gist limits
+      if (bodyContent.length > 900000) {
+        setSyncStatus('Backup is very large (attachments). Consider syncing events-only by removing big files first.', true);
+      }
+
+      const filePayload = {
+        description: 'Summer Vacation 2026 backup',
+        public: false,
+        files: {
+          'vacation_backup.json': { content: bodyContent }
+        }
+      };
+
+      setSyncStatus(gistId ? 'Uploading to existing gist…' : 'Creating private gist…');
+
+      try {
+        const url = gistId
+          ? `https://api.github.com/gists/${gistId}`
+          : 'https://api.github.com/gists';
+        const res = await fetch(url, {
+          method: gistId ? 'PATCH' : 'POST',
+          headers: {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(filePayload)
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || `GitHub error ${res.status}`);
+        }
+
+        const data = await res.json();
+        gistId = data.id;
+        document.getElementById('syncGistId').value = gistId;
+        localStorage.setItem(SYNC_GIST_KEY, gistId);
+        updateGistLink(gistId);
+        setSyncStatus(`Synced up at ${new Date().toLocaleString()}`);
+      } catch (err) {
+        console.error(err);
+        setSyncStatus('Upload failed. Check token permissions / gist id, or file size.', true);
+      }
+    }
+
+    async function pullBackupFromGist() {
+      const token = document.getElementById('syncToken').value.trim();
+      const gistId = document.getElementById('syncGistId').value.trim() || localStorage.getItem(SYNC_GIST_KEY) || '';
+      if (!gistId) {
+        setSyncStatus('Add a Gist ID (or upload once first).', true);
+        return;
+      }
+
+      if (token) localStorage.setItem(SYNC_TOKEN_KEY, token);
+      localStorage.setItem(SYNC_GIST_KEY, gistId);
+      setSyncStatus('Downloading backup…');
+
+      try {
+        const headers = { 'Accept': 'application/vnd.github+json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+        if (!res.ok) throw new Error(`GitHub error ${res.status}`);
+        const gist = await res.json();
+
+        const file = gist.files?.vacation_backup.json
+          || Object.values(gist.files || {}).find(f => (f.filename || '').endsWith('.json'));
+        if (!file) throw new Error('No JSON file in gist');
+
+        let content = file.content;
+        if (file.truncated && file.raw_url) {
+          const rawRes = await fetch(file.raw_url, { headers });
+          content = await rawRes.text();
+        }
+
+        applyBackupData(JSON.parse(content), { silent: true });
+        updateGistLink(gistId);
+        setSyncStatus(`Synced down at ${new Date().toLocaleString()}`);
+      } catch (err) {
+        console.error(err);
+        setSyncStatus('Download failed. Check gist id / token, or use a raw URL below.', true);
+      }
+    }
+
+    async function pullBackupFromUrl() {
+      const url = document.getElementById('syncUrl').value.trim();
+      if (!url) {
+        setSyncStatus('Paste a raw JSON URL first.', true);
+        return;
+      }
+      setSyncStatus('Pulling from URL…');
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        applyBackupData(await res.json(), { silent: true });
+        setSyncStatus(`Restored from URL at ${new Date().toLocaleString()}`);
+      } catch (err) {
+        console.error(err);
+        setSyncStatus('Could not pull that URL. It must be publicly readable JSON.', true);
+      }
+    }
+
+    // Apply saved theme ASAP
+    applyTheme(localStorage.getItem(THEME_KEY) || 'midnight');
 
     // Progressive Web App — install + offline cache
     let deferredInstallPrompt = null;
