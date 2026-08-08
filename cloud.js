@@ -178,10 +178,12 @@
   async function createTrip(seedEvents, seedAttachments) {
     ensureFirebase();
     if (!state.user) throw new Error("Sign in first.");
+
+    // Create trip + invite first (separate from seed data) so rules/batch limits don't hide the code.
     const tripRef = db.collection("trips").doc();
     const inviteCode = randomCode(6);
-    const batch = db.batch();
-    batch.set(tripRef, {
+    const setup = db.batch();
+    setup.set(tripRef, {
       name: "Summer Vacation 2026",
       inviteCode,
       createdBy: state.user.uid,
@@ -189,33 +191,46 @@
       members: [state.user.uid],
       memberEmails: [state.user.email || ""]
     });
-    batch.set(db.collection("inviteCodes").doc(inviteCode), {
+    setup.set(db.collection("inviteCodes").doc(inviteCode), {
       tripId: tripRef.id,
       createdBy: state.user.uid,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    batch.set(db.collection("users").doc(state.user.uid), {
+    setup.set(db.collection("users").doc(state.user.uid), {
       email: state.user.email || "",
       tripId: tripRef.id,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+    await setup.commit();
 
-    (seedEvents || []).forEach((ev) => {
-      const id = String(ev.id || ("ev_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
-      const { id: _drop, ...rest } = ev;
-      batch.set(tripRef.collection("events").doc(id), { ...rest, updatedAt: Date.now() });
-    });
+    state.inviteCode = inviteCode;
+    localStorage.setItem(LS_INVITE, inviteCode);
+    localStorage.setItem(LS_TRIP, tripRef.id);
+
+    // Seed starter events after the trip exists (member rules now pass).
+    const events = Array.isArray(seedEvents) ? seedEvents : [];
+    for (let i = 0; i < events.length; i += 400) {
+      const chunk = events.slice(i, i + 400);
+      const batch = db.batch();
+      chunk.forEach((ev) => {
+        const id = String(ev.id || ("ev_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
+        const { id: _drop, ...rest } = ev;
+        batch.set(tripRef.collection("events").doc(id), { ...rest, updatedAt: Date.now() });
+      });
+      await batch.commit();
+    }
 
     const atts = seedAttachments || {};
-    const attList = Array.isArray(atts) ? atts : Object.values(atts);
-    attList.forEach((a) => {
-      if (!a) return;
-      const id = String(a.id || ("att_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
-      batch.set(tripRef.collection("attachments").doc(id), attachmentPayload(a));
-    });
+    const attList = (Array.isArray(atts) ? atts : Object.values(atts)).filter(Boolean);
+    for (const a of attList) {
+      try {
+        const id = String(a.id || ("att_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
+        await tripRef.collection("attachments").doc(id).set(attachmentPayload(a));
+      } catch (_) {
+        // Skip oversized/legacy local attachments; trip + invite still succeed.
+      }
+    }
 
-    await batch.commit();
-    state.inviteCode = inviteCode;
     await loadTripMeta(tripRef.id);
     return { tripId: tripRef.id, inviteCode };
   }

@@ -26,10 +26,15 @@ service cloud.firestore {
     }
 
     match /trips/{tripId} {
-      allow read: if isTripMember(tripId);
+      // Members can read; also allow creator read right after create.
+      allow read: if signedIn() && (
+        request.auth.uid in resource.data.members
+        || resource.data.createdBy == request.auth.uid
+      );
       allow create: if signedIn()
         && request.resource.data.createdBy == request.auth.uid
-        && request.auth.uid in request.resource.data.members;
+        && request.auth.uid in request.resource.data.members
+        && request.resource.data.inviteCode is string;
       allow update: if isTripMember(tripId);
       allow delete: if signedIn()
         && resource.data.createdBy == request.auth.uid;
