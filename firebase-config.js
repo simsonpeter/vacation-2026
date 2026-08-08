@@ -1,16 +1,12 @@
-// Paste your Firebase web app config here (Firebase Console → Project settings → Your apps).
+// Firebase web config for shoppinglist-a892c
 // Enable: Authentication → Email/Password, and Cloud Firestore.
-// Deploy firestore.rules from this repo (or paste them in Firestore → Rules).
-//
-// You can also paste the same JSON in the app’s setup screen.
-window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
-
-// Example:
-// window.FIREBASE_CONFIG = {
-//   apiKey: "...",
-//   authDomain: "your-project.firebaseapp.com",
-//   projectId: "your-project",
-//   storageBucket: "your-project.appspot.com",
-//   messagingSenderId: "...",
-//   appId: "..."
-// };
+// Publish firestore.rules from this repo in Firestore → Rules.
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCCdc3nOEu9bwFS164DK1k5ED4s40WXzPg",
+  authDomain: "shoppinglist-a892c.firebaseapp.com",
+  projectId: "shoppinglist-a892c",
+  storageBucket: "shoppinglist-a892c.firebasestorage.app",
+  messagingSenderId: "582998140776",
+  appId: "1:582998140776:web:17c2d5cb4fb3cb08f0d8dd",
+  measurementId: "G-6YQ1C8LTB5"
+};
