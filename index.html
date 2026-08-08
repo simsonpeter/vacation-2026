@@ -717,7 +717,7 @@
         <button onclick="closeLinkModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p id="linkModalHint" class="text-xs text-slate-400">
-        Free shared sync uses links for larger files. Upload the PDF to <span class="text-slate-200">Google Drive</span> or Photos → Share → Anyone with the link → paste the URL here. Both of you can open it instantly.
+        Optional: paste a Drive/Photos share link. You can also attach PDFs directly with <span class="text-slate-200">File</span> (free, up to 8MB).
       </p>
       <form id="linkForm" onsubmit="saveLinkAttachment(event)" class="space-y-3">
         <input type="hidden" id="linkEventId">
@@ -755,8 +755,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="./firebase-config.js?v=16"></script>
-  <script src="./cloud.js?v=16"></script>
+  <script src="./firebase-config.js?v=17"></script>
+  <script src="./cloud.js?v=17"></script>
 
   <!-- App Script (live shared trip via Firebase) -->
   <script>
@@ -1808,29 +1808,18 @@
         createdAt: Date.now()
       };
 
-      // Compress photos so they fit free Firestore sync
+      if ((file.size || 0) > 8 * 1024 * 1024) {
+        throw new Error(`"${file.name}" is larger than 8MB. Please use a smaller file.`);
+      }
+
+      // Compress photos to keep sync light; PDFs upload natively via free chunked sync
       if (type.startsWith('image/')) {
         let dataUrl = await compressImageFile(file, 1600, 0.72);
         if (dataUrl.length > 700000) dataUrl = await compressImageFile(file, 1200, 0.55);
-        if (dataUrl.length > 700000) dataUrl = await compressImageFile(file, 900, 0.45);
         return { ...base, fileName: file.name.replace(/\.\w+$/, '') + '.jpg', fileType: 'image/jpeg', dataUrl };
       }
 
-      // Small non-image files can be stored directly
-      if ((file.size || 0) <= 480000) {
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result || ''));
-          reader.onerror = () => reject(new Error('Could not read file'));
-          reader.readAsDataURL(file);
-        });
-        if (dataUrl.length <= 700000) return { ...base, dataUrl };
-      }
-
-      // Larger PDFs/tickets: free path is a share link (no paid Storage)
-      const err = new Error('USE_LINK');
-      err.code = 'use-link';
-      throw err;
+      return { ...base, file };
     }
 
     async function uploadVoucher(eventId, event) {
@@ -1842,36 +1831,17 @@
         return;
       }
 
-      const pending = [];
-      let needsLink = false;
-
-      for (const file of files) {
-        try {
+      try {
+        const pending = [];
+        for (const file of files) {
           pending.push(await fileToAttachment(eventId, file));
-        } catch (err) {
-          if (err?.code === 'use-link' || err?.message === 'USE_LINK') needsLink = true;
-          else {
-            console.error(err);
-            alert(err.message || 'Could not prepare file.');
-          }
         }
+        await upsertAttachments(pending);
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Could not upload one or more files.');
       }
-
-      if (pending.length) {
-        try {
-          await upsertAttachments(pending);
-        } catch (err) {
-          console.error(err);
-          if (err?.code === 'attachment-too-large') needsLink = true;
-          else alert(err.message || 'Could not upload one or more files.');
-        }
-      }
-
       input.value = '';
-      if (needsLink) {
-        alert('Ticket PDFs are too large for free sync.\n\nUpload the file to Google Drive → Share → Anyone with the link → tap Link on the event and paste that URL.\n\nYour partner will open the same link instantly.');
-        openLinkModal(eventId);
-      }
     }
 
     function guessMimeFromName(name = '') {
@@ -1986,7 +1956,7 @@
       document.getElementById('docModal').classList.remove('hidden');
     }
 
-    function viewAttachment(attachmentId) {
+    async function viewAttachment(attachmentId) {
       const res = getAllAttachments().find(a => a.id === attachmentId);
       if (!res) return;
       if (res.kind === 'link') {
@@ -1998,21 +1968,28 @@
       const type = res.fileType || guessMimeFromName(fileName);
 
       try {
-        if (res.dataUrl) {
-          const blob = dataUrlToBlob(res.dataUrl);
-          const objectUrl = URL.createObjectURL(blob);
-          renderFilePreview(objectUrl, type || blob.type, fileName, { revokeOnClose: true });
-          return;
-        }
-        if (res.url) {
-          // Firebase Storage download URL — shared live with partner
+        let dataOrUrl = res.dataUrl || '';
+        if (!dataOrUrl && res.url && !res.chunked) {
           renderFilePreview(res.url, type, fileName, { revokeOnClose: false });
           return;
         }
-        alert('This attachment has no file data. Please attach it again.');
+        if (!dataOrUrl) {
+          dataOrUrl = await VacationCloud.getAttachmentDataUrl(attachmentId);
+        }
+        if (!dataOrUrl) {
+          alert('This attachment has no file data. Please attach it again.');
+          return;
+        }
+        if (/^https?:\/\//i.test(dataOrUrl) && !dataOrUrl.startsWith('data:')) {
+          renderFilePreview(dataOrUrl, type, fileName, { revokeOnClose: false });
+          return;
+        }
+        const blob = dataUrlToBlob(dataOrUrl);
+        const objectUrl = URL.createObjectURL(blob);
+        renderFilePreview(objectUrl, type || blob.type, fileName, { revokeOnClose: true });
       } catch (err) {
         console.error(err);
-        alert('Could not open this attachment. Please attach the file again.');
+        alert(err.message || 'Could not open this attachment. Please attach the file again.');
       }
     }
 

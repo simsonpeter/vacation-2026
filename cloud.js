@@ -107,7 +107,7 @@
     return {
       id,
       eventId: data.eventId,
-      kind: data.kind || (data.url && !data.dataUrl ? "link" : "file"),
+      kind: data.kind || (data.url && !data.dataUrl && !data.chunked ? "link" : "file"),
       fileName: data.fileName || data.name || "File",
       fileType: data.fileType || data.type || "application/octet-stream",
       name: data.fileName || data.name || "File",
@@ -117,6 +117,8 @@
       label: data.label || "",
       dataUrl: data.dataUrl || "",
       storagePath: data.storagePath || "",
+      chunked: !!data.chunked,
+      chunkCount: data.chunkCount || 0,
       createdAt: data.createdAt || data.updatedAt || Date.now(),
       updatedAt: data.updatedAt || Date.now()
     };
@@ -349,9 +351,69 @@
     await db.collection("trips").doc(state.tripId).collection("events").doc(String(eventId)).delete();
   }
 
-  // Free plan: store small files / compressed images as dataUrl in Firestore.
-  // Larger tickets/PDFs should be shared as links (Google Drive, etc.).
-  const MAX_FIRESTORE_DATA_URL = 700000;
+  // Free native uploads: small files in one doc; larger files split across chunk docs.
+  // No paid Firebase Storage required.
+  const CHUNK_SIZE = 700000;
+  const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+  function chunksCol(tripId) {
+    return db.collection("trips").doc(tripId).collection("attachmentChunks");
+  }
+
+  async function writeAttachmentChunks(tripId, attachmentId, dataUrl) {
+    const chunkCount = Math.ceil(dataUrl.length / CHUNK_SIZE) || 1;
+    for (let start = 0; start < chunkCount; start += 400) {
+      const batch = db.batch();
+      const end = Math.min(chunkCount, start + 400);
+      for (let i = start; i < end; i++) {
+        batch.set(chunksCol(tripId).doc(attachmentId + "_" + i), {
+          attachmentId,
+          index: i,
+          data: dataUrl.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+        });
+      }
+      await batch.commit();
+    }
+    return chunkCount;
+  }
+
+  async function deleteAttachmentChunks(tripId, attachmentId, chunkCount) {
+    const count = Number(chunkCount) || 0;
+    if (!count) return;
+    for (let start = 0; start < count; start += 400) {
+      const batch = db.batch();
+      const end = Math.min(count, start + 400);
+      for (let i = start; i < end; i++) {
+        batch.delete(chunksCol(tripId).doc(attachmentId + "_" + i));
+      }
+      await batch.commit();
+    }
+  }
+
+  async function getAttachmentDataUrl(attachmentId) {
+    ensureFirebase();
+    if (!state.tripId) throw new Error("Join a shared trip first.");
+    const id = String(attachmentId);
+    let meta = state.attachments[id];
+    if (!meta) {
+      const snap = await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).get();
+      if (!snap.exists) throw new Error("Attachment not found.");
+      meta = normalizeAttachment(id, snap.data() || {});
+    }
+    if (meta.kind === "link") return meta.url || "";
+    if (meta.dataUrl) return meta.dataUrl;
+    if (meta.url && !meta.chunked) return meta.url;
+    if (meta.chunked && meta.chunkCount) {
+      let out = "";
+      for (let i = 0; i < meta.chunkCount; i++) {
+        const snap = await chunksCol(state.tripId).doc(id + "_" + i).get();
+        if (!snap.exists) throw new Error("File data is incomplete. Try uploading again.");
+        out += snap.data().data || "";
+      }
+      return out;
+    }
+    throw new Error("This attachment has no file data.");
+  }
 
   async function upsertAttachment(att) {
     ensureFirebase();
@@ -361,9 +423,10 @@
     const fileName = att.fileName || att.name || (kind === "link" ? "Link" : "file");
     const fileType = att.fileType || att.type || "application/octet-stream";
     const createdAt = att.createdAt || Date.now();
+    const attRef = db.collection("trips").doc(state.tripId).collection("attachments").doc(id);
 
     if (kind === "link") {
-      await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
+      await attRef.set({
         eventId: att.eventId,
         kind: "link",
         fileName,
@@ -374,6 +437,8 @@
         url: att.url || "",
         label: att.label || "",
         dataUrl: "",
+        chunked: false,
+        chunkCount: 0,
         storagePath: "",
         createdAt,
         updatedAt: Date.now()
@@ -385,6 +450,9 @@
     let size = att.size || 0;
 
     if (!dataUrl && att.file) {
+      if ((att.file.size || 0) > MAX_UPLOAD_BYTES) {
+        throw new Error("File is larger than 8MB. Please use a smaller file.");
+      }
       dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ""));
@@ -395,8 +463,7 @@
     }
 
     if (!dataUrl && att.url) {
-      // Already a remote URL (e.g. previously uploaded)
-      await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
+      await attRef.set({
         eventId: att.eventId,
         kind: "file",
         fileName,
@@ -407,6 +474,8 @@
         url: att.url,
         label: att.label || "",
         dataUrl: "",
+        chunked: false,
+        chunkCount: 0,
         storagePath: att.storagePath || "",
         createdAt,
         updatedAt: Date.now()
@@ -415,16 +484,41 @@
     }
 
     if (!dataUrl) throw new Error("No file data to save.");
-
-    if (dataUrl.length > MAX_FIRESTORE_DATA_URL) {
-      const err = new Error(
-        "This file is too large for free shared sync. Upload it to Google Drive (or Photos), set sharing to Anyone with the link, then tap Link and paste that URL."
-      );
-      err.code = "attachment-too-large";
-      throw err;
+    if (dataUrl.length > MAX_UPLOAD_BYTES * 1.4) {
+      throw new Error("File is too large after encoding (max about 8MB).");
     }
 
-    await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
+    // Remove previous chunks if replacing
+    try {
+      const prev = await attRef.get();
+      if (prev.exists && prev.data().chunked && prev.data().chunkCount) {
+        await deleteAttachmentChunks(state.tripId, id, prev.data().chunkCount);
+      }
+    } catch (_) {}
+
+    if (dataUrl.length <= CHUNK_SIZE) {
+      await attRef.set({
+        eventId: att.eventId,
+        kind: "file",
+        fileName,
+        fileType,
+        name: fileName,
+        type: fileType,
+        size: size || dataUrl.length,
+        url: "",
+        label: att.label || "",
+        dataUrl,
+        chunked: false,
+        chunkCount: 0,
+        storagePath: "",
+        createdAt,
+        updatedAt: Date.now()
+      }, { merge: true });
+      return id;
+    }
+
+    const chunkCount = await writeAttachmentChunks(state.tripId, id, dataUrl);
+    await attRef.set({
       eventId: att.eventId,
       kind: "file",
       fileName,
@@ -434,7 +528,9 @@
       size: size || dataUrl.length,
       url: "",
       label: att.label || "",
-      dataUrl,
+      dataUrl: "",
+      chunked: true,
+      chunkCount,
       storagePath: "",
       createdAt,
       updatedAt: Date.now()
@@ -444,13 +540,28 @@
 
   async function deleteAttachmentDoc(attachmentId) {
     if (!state.tripId) throw new Error("Join a shared trip first.");
-    await db.collection("trips").doc(state.tripId).collection("attachments").doc(String(attachmentId)).delete();
+    const id = String(attachmentId);
+    const ref = db.collection("trips").doc(state.tripId).collection("attachments").doc(id);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const data = snap.data() || {};
+      if (data.chunked && data.chunkCount) {
+        await deleteAttachmentChunks(state.tripId, id, data.chunkCount);
+      }
+    }
+    await ref.delete();
   }
 
   async function deleteAttachmentsForEvent(eventId) {
     if (!state.tripId) return;
     const snap = await db.collection("trips").doc(state.tripId).collection("attachments")
       .where("eventId", "==", String(eventId)).get();
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      if (data.chunked && data.chunkCount) {
+        await deleteAttachmentChunks(state.tripId, doc.id, data.chunkCount);
+      }
+    }
     const batch = db.batch();
     snap.forEach((doc) => batch.delete(doc.ref));
     if (!snap.empty) await batch.commit();
@@ -541,6 +652,7 @@
     deleteEvent: deleteEventDoc,
     upsertAttachment,
     deleteAttachment: deleteAttachmentDoc,
-    deleteAttachmentsForEvent
+    deleteAttachmentsForEvent,
+    getAttachmentDataUrl
   };
 })(window);

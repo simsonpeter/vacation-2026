@@ -53,6 +53,11 @@ service cloud.firestore {
       match /attachments/{attachmentId} {
         allow read, write: if isTripMember(tripId);
       }
+
+      // Chunked file bytes for free native uploads (no paid Storage)
+      match /attachmentChunks/{chunkId} {
+        allow read, write: if isTripMember(tripId);
+      }
     }
   }
 }
