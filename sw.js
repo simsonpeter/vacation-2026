@@ -1,8 +1,10 @@
-const CACHE_NAME = 'vacation-2026-v10';
+const CACHE_NAME = 'vacation-2026-v11';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './firebase-config.js',
+  './cloud.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
@@ -42,9 +44,7 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => cached);
-
-      // Prefer network, fall back to cache when offline
-      return networkFetch.then((response) => response || cached);
+      return cached || networkFetch;
     })
   );
 });

@@ -279,9 +279,94 @@
       text-align: center;
       color: var(--brand-500);
     }
+
+    #authGate {
+      background:
+        radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--brand-500) 28%, transparent), transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, color-mix(in srgb, var(--brand-600) 22%, transparent), transparent 50%),
+        var(--app-bg);
+    }
+    .auth-card {
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+    }
+    .sync-pill {
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--app-border);
+      color: var(--app-muted);
+      background: color-mix(in srgb, var(--app-surface) 80%, transparent);
+    }
+    .sync-pill.live { color: #86efac; border-color: color-mix(in srgb, #22c55e 45%, var(--app-border)); }
+    .sync-pill.syncing { color: #fde68a; border-color: color-mix(in srgb, #f59e0b 45%, var(--app-border)); }
+    .sync-pill.error { color: #fca5a5; border-color: color-mix(in srgb, #ef4444 45%, var(--app-border)); }
   </style>
 </head>
 <body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Account gate: must sign in + join shared trip before using the planner -->
+  <div id="authGate" class="fixed inset-0 z-[70] overflow-y-auto">
+    <div class="min-h-full max-w-lg mx-auto px-4 py-8 flex flex-col justify-center">
+      <div class="mb-6 text-center">
+        <img src="icons/logo.svg" alt="Vacation 2026 logo" class="w-16 h-16 mx-auto rounded-2xl shadow-lg shadow-brand-500/20 ring-1 ring-white/10">
+        <h1 class="mt-4 text-2xl font-bold tracking-tight">Summer Vacation 2026</h1>
+        <p class="mt-1 text-sm text-slate-400">Shared live itinerary for Rome &amp; Pisa</p>
+      </div>
+
+      <div id="authConfigPanel" class="auth-card rounded-2xl p-5 space-y-3 mb-4 hidden">
+        <h2 class="text-sm font-semibold">1. Connect Firebase</h2>
+        <p class="text-xs text-slate-400">Create a free Firebase project with Email/Password Auth + Firestore, then paste the web config JSON below (or put it in <code class="text-slate-300">firebase-config.js</code>).</p>
+        <textarea id="firebaseConfigInput" rows="8" spellcheck="false" placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..." }' class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-100 focus:outline-none focus:border-brand-500"></textarea>
+        <button type="button" onclick="saveFirebaseConfigFromUi()" class="w-full px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-sm font-semibold text-white">Save &amp; continue</button>
+        <p id="authConfigError" class="text-xs text-red-400 hidden"></p>
+      </div>
+
+      <div id="authLoginPanel" class="auth-card rounded-2xl p-5 space-y-3 mb-4 hidden">
+        <h2 class="text-sm font-semibold">2. Sign in</h2>
+        <p class="text-xs text-slate-400">You and your partner each create an account. Then you share one invite code so both stay on the same live trip.</p>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button type="button" id="authTabSignIn" onclick="setAuthMode('signin')" class="px-3 py-2 rounded-lg bg-brand-600 text-white font-medium">Sign in</button>
+          <button type="button" id="authTabSignUp" onclick="setAuthMode('signup')" class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium">Create account</button>
+        </div>
+        <form id="authForm" onsubmit="submitAuthForm(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Email</label>
+            <input type="email" id="authEmail" required autocomplete="email" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Password</label>
+            <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+          <button type="submit" id="authSubmitBtn" class="w-full px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-sm font-semibold text-white">Sign in</button>
+        </form>
+        <p id="authLoginError" class="text-xs text-red-400 hidden"></p>
+      </div>
+
+      <div id="authTripPanel" class="auth-card rounded-2xl p-5 space-y-4 mb-4 hidden">
+        <div>
+          <h2 class="text-sm font-semibold">3. Join your shared trip</h2>
+          <p class="text-xs text-slate-400 mt-1">One person creates the trip and shares the invite code. The other joins with that code — updates appear instantly on both phones.</p>
+          <p id="authSignedInAs" class="text-xs text-slate-500 mt-2"></p>
+        </div>
+        <div class="space-y-2 border border-slate-700/80 rounded-xl p-3">
+          <h3 class="text-xs font-semibold text-slate-200">Create trip (first person)</h3>
+          <button type="button" onclick="createSharedTrip()" class="w-full px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-sm font-semibold text-white">Create shared trip</button>
+        </div>
+        <div class="space-y-2 border border-slate-700/80 rounded-xl p-3">
+          <h3 class="text-xs font-semibold text-slate-200">Join with invite code (partner)</h3>
+          <input type="text" id="joinInviteCode" maxlength="8" placeholder="e.g. AB12CD" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm tracking-widest uppercase text-slate-100 focus:outline-none focus:border-brand-500">
+          <button type="button" onclick="joinSharedTrip()" class="w-full px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold text-slate-100">Join trip</button>
+        </div>
+        <button type="button" onclick="cloudSignOut()" class="text-xs text-slate-400 hover:text-slate-200">Sign out</button>
+        <p id="authTripError" class="text-xs text-red-400 hidden"></p>
+      </div>
+
+      <p id="authBootStatus" class="text-center text-xs text-slate-500">Starting shared sync…</p>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
@@ -290,7 +375,10 @@
         <img src="icons/logo.svg" alt="Vacation 2026 logo" class="w-10 h-10 rounded-xl shadow-lg shadow-brand-500/20 ring-1 ring-white/10 shrink-0">
         <div class="min-w-0">
           <h1 class="font-bold text-lg leading-tight truncate">Summer Vacation 2026</h1>
-          <p class="text-xs text-slate-400 truncate">Rome & Pisa | Aug 10 - Aug 15</p>
+          <p class="text-xs text-slate-400 truncate flex items-center gap-2">
+            <span>Rome & Pisa | Aug 10 - Aug 15</span>
+            <span id="syncPill" class="sync-pill hidden">Offline</span>
+          </p>
         </div>
       </div>
       <div class="relative shrink-0">
@@ -301,16 +389,15 @@
           <button type="button" id="installAppBtn" onclick="installPwa(); closeAppMenu();" class="menu-item hidden">
             <i class="fa-solid fa-download"></i><span>Install app</span>
           </button>
+          <button type="button" onclick="openAccountModal(); closeAppMenu();" class="menu-item">
+            <i class="fa-solid fa-user-group"></i><span>Account &amp; invite</span>
+          </button>
           <button type="button" onclick="openSettingsModal(); closeAppMenu();" class="menu-item">
-            <i class="fa-solid fa-gear"></i><span>Settings & themes</span>
+            <i class="fa-solid fa-palette"></i><span>Themes</span>
           </button>
-          <button type="button" onclick="exportData(); closeAppMenu();" class="menu-item">
-            <i class="fa-solid fa-file-export"></i><span>Backup / Export</span>
+          <button type="button" onclick="cloudSignOut(); closeAppMenu();" class="menu-item">
+            <i class="fa-solid fa-right-from-bracket"></i><span>Sign out</span>
           </button>
-          <label class="menu-item cursor-pointer">
-            <i class="fa-solid fa-file-import"></i><span>Restore / Import</span>
-            <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event); closeAppMenu();">
-          </label>
         </div>
       </div>
     </div>
@@ -393,11 +480,11 @@
     </div>
   </nav>
 
-  <!-- Settings: Themes + Cloud Sync -->
+  <!-- Settings: Themes only -->
   <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5 space-y-5">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-lg">Themes & Sync</h3>
+        <h3 class="font-bold text-lg">Themes</h3>
         <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
@@ -409,48 +496,32 @@
         <div id="themePicker" class="grid grid-cols-2 gap-2"></div>
       </section>
 
-      <section class="space-y-3 border-t border-slate-800 pt-4">
-        <div>
-          <h4 class="text-sm font-semibold text-slate-100">Online backup sync</h4>
-          <p class="text-xs text-slate-400 mt-0.5">
-            Yes — sync the same backup JSON online via a private GitHub Gist, or pull from any raw JSON URL.
-          </p>
-        </div>
-
-        <div class="space-y-2">
-          <label class="block text-xs font-medium text-slate-400">GitHub token (gist scope)</label>
-          <input type="password" id="syncToken" autocomplete="off" placeholder="ghp_..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
-          <p class="text-[11px] text-slate-500">Stored only on this device. Create a fine-grained or classic token with <code class="text-slate-300">gist</code> access.</p>
-        </div>
-
-        <div class="space-y-2">
-          <label class="block text-xs font-medium text-slate-400">Gist ID (filled after first upload)</label>
-          <input type="text" id="syncGistId" placeholder="optional existing gist id" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="pushBackupToGist()" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Upload / Sync up</button>
-          <button type="button" onclick="pullBackupFromGist()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200"><i class="fa-solid fa-cloud-arrow-down mr-1"></i>Download / Sync down</button>
-        </div>
-        <p id="syncStatus" class="text-xs text-slate-400"></p>
-        <p id="syncGistLinkWrap" class="text-xs text-slate-400 hidden">
-          Gist: <a id="syncGistLink" href="#" target="_blank" rel="noopener noreferrer" class="text-brand-500 hover:underline break-all"></a>
-        </p>
-      </section>
-
-      <section class="space-y-3 border-t border-slate-800 pt-4">
-        <div>
-          <h4 class="text-sm font-semibold text-slate-100">Restore from URL</h4>
-          <p class="text-xs text-slate-400 mt-0.5">Paste a raw JSON backup URL (Gist raw link, Dropbox direct link, etc.).</p>
-        </div>
-        <div class="flex gap-2">
-          <input type="url" id="syncUrl" placeholder="https://..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
-          <button type="button" onclick="pullBackupFromUrl()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 whitespace-nowrap"><i class="fa-solid fa-link mr-1"></i>Pull</button>
-        </div>
-      </section>
-
       <div class="flex justify-end pt-1">
         <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account & invite -->
+  <div id="accountModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-lg">Account &amp; invite</h3>
+        <button onclick="closeAccountModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-2 text-sm">
+        <p class="text-slate-300">Signed in as <span id="accountEmail" class="font-medium text-slate-100">—</span></p>
+        <p class="text-slate-400 text-xs">Sync status: <span id="accountSyncStatus">—</span></p>
+      </div>
+      <div class="rounded-xl border border-slate-700 p-4 space-y-2">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Invite code for your partner</p>
+        <p id="accountInviteCode" class="text-2xl font-bold tracking-[0.25em] text-brand-500">————</p>
+        <p class="text-xs text-slate-400">They sign in with their own account, then enter this code once. After that, every event and attachment update is live for both of you — no backup files.</p>
+        <button type="button" onclick="copyInviteCode()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200"><i class="fa-solid fa-copy mr-1"></i>Copy invite code</button>
+      </div>
+      <div class="flex justify-between gap-2 pt-1">
+        <button type="button" onclick="cloudSignOut(); closeAccountModal();" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-red-300">Sign out</button>
+        <button type="button" onclick="closeAccountModal()" class="px-4 py-2 rounded-lg bg-brand-600 text-xs font-medium text-white">Done</button>
       </div>
     </div>
   </div>
@@ -664,9 +735,15 @@
     </div>
   </div>
 
-  <!-- IndexedDB & App Script -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="./firebase-config.js"></script>
+  <script src="./cloud.js"></script>
+
+  <!-- App Script (live shared trip via Firebase) -->
   <script>
-    // Initial pre-loaded itinerary data
+    // Starter itinerary seeded when the first person creates the shared trip
     const initialEvents = [
       { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) → Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
       { id: 'stay-rome', title: 'Rome Airbnb', type: 'STAY', categories: ['STAY'], date: '2026-08-10', time: '15:00', endDate: '2026-08-15', endTime: '11:00', location: 'Airbnb — Centro Storico', address: 'Via dei Serpenti, 00184 Roma RM, Italy', notes: 'Check-in after 15:00. Check out by 11:00 before the return flight. Self check-in with lockbox code in confirmation email.' },
@@ -677,187 +754,253 @@
 
     let currentFilter = 'UPCOMING';
     let currentDetailEventId = null;
-    let db = null;
+    let authMode = 'signin';
+    let cloudEvents = [];
+    let cloudAttachments = [];
+    let appUiStarted = false;
     const ATTACHMENTS_KEY = 'vacation_attachments';
 
-    // Attachments are stored in localStorage (reliable + exportable).
-    // IndexedDB is only used to migrate older voucher/attachment data once.
-    function getAllAttachments() {
-      try {
-        const parsed = JSON.parse(localStorage.getItem(ATTACHMENTS_KEY) || '[]');
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
+    function cloudState() {
+      return window.VacationCloud ? VacationCloud.getState() : { ready: false, configured: false, user: null, tripId: null, events: [], attachments: {}, status: 'offline' };
+    }
+
+    function requireTrip() {
+      const s = cloudState();
+      if (!s.user || !s.tripId) {
+        alert('Sign in and join the shared trip first.');
+        return false;
       }
+      return true;
     }
 
-    function saveAllAttachments(list) {
-      localStorage.setItem(ATTACHMENTS_KEY, JSON.stringify(list));
-    }
-
-    function upsertAttachments(newItems) {
-      if (!newItems.length) return;
-      const map = new Map(getAllAttachments().map(a => [a.id, a]));
-      newItems.forEach(item => map.set(item.id, item));
-      saveAllAttachments([...map.values()]);
-    }
-
-    function migrateFromIndexedDB() {
-      return new Promise((resolve) => {
-        if (!window.indexedDB) return resolve();
-
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          resolve();
-        };
-
-        // Don't block the UI if IDB is slow/broken
-        setTimeout(finish, 1500);
-
-        try {
-          const request = indexedDB.open('VacationAppDB', 2);
-          request.onerror = () => finish();
-          request.onblocked = () => finish();
-          request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains('vouchers')) {
-              db.createObjectStore('vouchers', { keyPath: 'eventId' });
-            }
-            if (!db.objectStoreNames.contains('attachments')) {
-              const store = db.createObjectStore('attachments', { keyPath: 'id' });
-              store.createIndex('eventId', 'eventId', { unique: false });
-            }
-          };
-          request.onsuccess = (e) => {
-            db = e.target.result;
-            // Only migrate if local attachments are empty
-            if (getAllAttachments().length > 0) return finish();
-
-            const storeNames = [...db.objectStoreNames];
-            const wants = ['attachments', 'vouchers'].filter(n => storeNames.includes(n));
-            if (!wants.length) return finish();
-
-            try {
-              const tx = db.transaction(wants, 'readonly');
-              const migrated = [];
-
-              const collect = (items) => {
-                (items || []).forEach(v => {
-                  if (!v) return;
-                  if (v.kind === 'link' || v.kind === 'file') {
-                    migrated.push(v);
-                  } else if (v.eventId && v.dataUrl) {
-                    migrated.push({
-                      id: v.id || `legacy-${v.eventId}`,
-                      eventId: v.eventId,
-                      kind: 'file',
-                      fileName: v.fileName || 'Voucher',
-                      fileType: v.fileType || 'application/octet-stream',
-                      dataUrl: v.dataUrl,
-                      createdAt: v.createdAt || Date.now()
-                    });
-                  }
-                });
-              };
-
-              let pending = wants.length;
-              wants.forEach((name) => {
-                const req = tx.objectStore(name).getAll();
-                req.onsuccess = () => {
-                  collect(req.result);
-                  pending -= 1;
-                  if (pending <= 0) {
-                    if (migrated.length) upsertAttachments(migrated);
-                    finish();
-                  }
-                };
-                req.onerror = () => {
-                  pending -= 1;
-                  if (pending <= 0) finish();
-                };
-              });
-              tx.onerror = () => finish();
-            } catch {
-              finish();
-            }
-          };
-        } catch {
-          finish();
-        }
-      });
-    }
-
-    async function initApp() {
-      if (!localStorage.getItem('vacation_events')) {
-        localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
-      }
-      // If events were wiped somehow, restore the starter itinerary
+    function readLegacyLocalEvents() {
       try {
         const existing = JSON.parse(localStorage.getItem('vacation_events') || '[]');
-        if (!Array.isArray(existing) || existing.length === 0) {
-          localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
-        } else {
-          // Backfill address / stay seed data on known starter events if missing
-          const seedById = Object.fromEntries(initialEvents.map(e => [e.id, e]));
-          let changed = false;
-          const merged = existing.map(ev => {
-            const seed = seedById[ev.id];
-            let next = ev;
-            if (seed?.address && !ev.address) {
-              changed = true;
-              next = { ...next, address: seed.address };
-            }
-            if (ev.type === 'HOTEL') {
-              changed = true;
-              next = { ...next, type: 'STAY' };
-            }
-            // Backfill multi-categories from seed (e.g. Pisa = Train + Sights)
-            if (Array.isArray(seed?.categories) && seed.categories.length) {
-              const current = new Set([
-                ...(Array.isArray(next.categories) ? next.categories : []),
-                next.type
-              ].filter(Boolean).map(c => c === 'HOTEL' ? 'STAY' : c));
-              let added = false;
-              seed.categories.forEach(cat => {
-                const normalized = cat === 'HOTEL' ? 'STAY' : cat;
-                if (!current.has(normalized)) {
-                  current.add(normalized);
-                  added = true;
-                }
-              });
-              if (added || !Array.isArray(next.categories)) {
-                changed = true;
-                next = { ...next, categories: [...current] };
-              }
-            }
-            return next;
+        if (Array.isArray(existing) && existing.length) {
+          return existing.map((ev) => {
+            if (ev?.type === 'HOTEL') return { ...ev, type: 'STAY' };
+            return ev;
           });
-
-          // Ensure the Rome stay exists for existing users
-          if (!merged.some(e => e.id === 'stay-rome')) {
-            const stay = seedById['stay-rome'];
-            if (stay) {
-              merged.push(stay);
-              changed = true;
-            }
-          }
-
-          if (changed) localStorage.setItem('vacation_events', JSON.stringify(merged));
         }
-      } catch {
-        localStorage.setItem('vacation_events', JSON.stringify(initialEvents));
-      }
+      } catch (_) {}
+      return initialEvents.slice();
+    }
 
-      await migrateFromIndexedDB();
+    function readLegacyLocalAttachments() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(ATTACHMENTS_KEY) || '[]');
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      } catch (_) {}
+      return [];
+    }
+
+    function getAllAttachments() {
+      return cloudAttachments.slice();
+    }
+
+    async function upsertAttachments(newItems) {
+      if (!newItems.length || !requireTrip()) return;
+      for (const item of newItems) {
+        await VacationCloud.upsertAttachment(item);
+      }
+    }
+
+    function setPanelError(id, message) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (!message) {
+        el.classList.add('hidden');
+        el.textContent = '';
+        return;
+      }
+      el.textContent = message;
+      el.classList.remove('hidden');
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode === 'signup' ? 'signup' : 'signin';
+      const signInTab = document.getElementById('authTabSignIn');
+      const signUpTab = document.getElementById('authTabSignUp');
+      const btn = document.getElementById('authSubmitBtn');
+      if (authMode === 'signup') {
+        signInTab.className = 'px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium';
+        signUpTab.className = 'px-3 py-2 rounded-lg bg-brand-600 text-white font-medium';
+        btn.textContent = 'Create account';
+        document.getElementById('authPassword').autocomplete = 'new-password';
+      } else {
+        signInTab.className = 'px-3 py-2 rounded-lg bg-brand-600 text-white font-medium';
+        signUpTab.className = 'px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-medium';
+        btn.textContent = 'Sign in';
+        document.getElementById('authPassword').autocomplete = 'current-password';
+      }
+    }
+
+    function updateAuthGate(state) {
+      const gate = document.getElementById('authGate');
+      const boot = document.getElementById('authBootStatus');
+      const configPanel = document.getElementById('authConfigPanel');
+      const loginPanel = document.getElementById('authLoginPanel');
+      const tripPanel = document.getElementById('authTripPanel');
+      if (!gate) return;
+
+      const readyForApp = !!(state.configured && state.user && state.tripId);
+      gate.classList.toggle('hidden', readyForApp);
+
+      configPanel.classList.toggle('hidden', !!state.configured);
+      loginPanel.classList.toggle('hidden', !state.configured || !!state.user);
+      tripPanel.classList.toggle('hidden', !state.configured || !state.user || !!state.tripId);
+
+      if (!state.ready) {
+        boot.textContent = 'Starting shared sync…';
+        boot.classList.remove('hidden');
+      } else if (!state.configured) {
+        boot.textContent = 'Paste your Firebase web config to enable online accounts.';
+        boot.classList.remove('hidden');
+      } else if (!state.user) {
+        boot.textContent = 'Sign in with your account.';
+        boot.classList.remove('hidden');
+      } else if (!state.tripId) {
+        boot.textContent = 'Create a trip or join with your partner\'s invite code.';
+        boot.classList.remove('hidden');
+        document.getElementById('authSignedInAs').textContent = `Signed in as ${state.user.email || state.user.uid}`;
+      } else {
+        boot.classList.add('hidden');
+      }
+    }
+
+    function updateSyncPill(state) {
+      const pill = document.getElementById('syncPill');
+      if (!pill) return;
+      if (!state.tripId) {
+        pill.classList.add('hidden');
+        return;
+      }
+      pill.classList.remove('hidden', 'live', 'syncing', 'error');
+      if (state.status === 'live') {
+        pill.textContent = 'Live';
+        pill.classList.add('live');
+      } else if (state.status === 'syncing') {
+        pill.textContent = 'Syncing';
+        pill.classList.add('syncing');
+      } else if (state.status === 'error') {
+        pill.textContent = 'Sync error';
+        pill.classList.add('error');
+      } else {
+        pill.textContent = state.status || 'Online';
+      }
+    }
+
+    function saveFirebaseConfigFromUi() {
+      setPanelError('authConfigError', '');
+      try {
+        const raw = document.getElementById('firebaseConfigInput').value.trim();
+        const cfg = JSON.parse(raw);
+        VacationCloud.configure(cfg);
+      } catch (err) {
+        setPanelError('authConfigError', err.message || 'Invalid config JSON');
+      }
+    }
+
+    async function submitAuthForm(e) {
+      e.preventDefault();
+      setPanelError('authLoginError', '');
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      try {
+        if (authMode === 'signup') await VacationCloud.signUp(email, password);
+        else await VacationCloud.signIn(email, password);
+      } catch (err) {
+        setPanelError('authLoginError', err.message || String(err));
+      }
+    }
+
+    async function createSharedTrip() {
+      setPanelError('authTripError', '');
+      try {
+        const seedEvents = readLegacyLocalEvents();
+        const seedAtts = readLegacyLocalAttachments();
+        const result = await VacationCloud.createTrip(seedEvents, seedAtts);
+        alert(`Trip created. Share this invite code with your partner:\n\n${result.inviteCode}`);
+      } catch (err) {
+        setPanelError('authTripError', err.message || String(err));
+      }
+    }
+
+    async function joinSharedTrip() {
+      setPanelError('authTripError', '');
+      try {
+        const code = document.getElementById('joinInviteCode').value;
+        await VacationCloud.joinTrip(code);
+      } catch (err) {
+        setPanelError('authTripError', err.message || String(err));
+      }
+    }
+
+    async function cloudSignOut() {
+      try {
+        await VacationCloud.signOut();
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+
+    function openAccountModal() {
+      const state = cloudState();
+      document.getElementById('accountEmail').textContent = state.user?.email || '—';
+      document.getElementById('accountSyncStatus').textContent = state.status || '—';
+      document.getElementById('accountInviteCode').textContent = state.inviteCode || '————';
+      document.getElementById('accountModal').classList.remove('hidden');
+    }
+
+    function closeAccountModal() {
+      document.getElementById('accountModal').classList.add('hidden');
+    }
+
+    async function copyInviteCode() {
+      const code = cloudState().inviteCode;
+      if (!code) {
+        alert('No invite code yet.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(code);
+        alert('Invite code copied.');
+      } catch (_) {
+        prompt('Copy this invite code:', code);
+      }
+    }
+
+    function startAppUi() {
+      if (appUiStarted) return;
+      appUiStarted = true;
       updateFormForType();
       renderTimeline();
       startCountdownTicker();
     }
 
-    // Start app immediately; IDB migration happens in background-friendly await
-    initApp();
+    function onCloudChange(state) {
+      cloudEvents = Array.isArray(state.events) ? state.events.slice() : [];
+      cloudAttachments = state.attachments ? Object.values(state.attachments) : [];
+      updateAuthGate(state);
+      updateSyncPill(state);
+
+      if (state.user && state.tripId) {
+        startAppUi();
+        renderTimeline();
+        updateCountdown();
+        if (currentDetailEventId) renderAttachments(currentDetailEventId);
+        const emailEl = document.getElementById('accountEmail');
+        if (emailEl && !document.getElementById('accountModal').classList.contains('hidden')) {
+          openAccountModal();
+        }
+      }
+    }
+
+    function initApp() {
+      setAuthMode('signin');
+      VacationCloud.onChange(onCloudChange);
+      VacationCloud.init();
+    }
 
     function escapeHtml(str) {
       return String(str ?? '')
@@ -876,11 +1019,11 @@
     }
 
     function getEvents() {
-      return JSON.parse(localStorage.getItem('vacation_events') || '[]');
+      return cloudEvents.slice();
     }
 
-    function saveEvents(events) {
-      localStorage.setItem('vacation_events', JSON.stringify(events));
+    function saveEvents(_events) {
+      // Mutations write directly to Firestore; realtime listener refreshes UI.
       renderTimeline();
       updateCountdown();
     }
@@ -1344,9 +1487,9 @@
       document.getElementById('eventModal').classList.add('hidden');
     }
 
-    function saveEvent(e) {
+    async function saveEvent(e) {
       e.preventDefault();
-      const events = getEvents();
+      if (!requireTrip()) return;
       const id = document.getElementById('eventId').value || Date.now().toString();
       const type = normalizeCategory(document.getElementById('eventType').value);
       const extras = getSelectedExtraCategories(type);
@@ -1373,12 +1516,12 @@
         return;
       }
 
-      const index = events.findIndex(x => x.id === id);
-      if (index >= 0) events[index] = newEv;
-      else events.push(newEv);
-
-      saveEvents(events);
-      closeModal();
+      try {
+        await VacationCloud.upsertEvent(newEv);
+        closeModal();
+      } catch (err) {
+        alert(err.message || 'Could not save event.');
+      }
     }
 
     function editEvent(id) {
@@ -1386,11 +1529,16 @@
       if (ev) openModal(ev);
     }
 
-    function deleteEvent(id) {
+    async function deleteEvent(id) {
       if (!confirm('Are you sure you want to delete this event?')) return;
-      saveEvents(getEvents().filter(x => x.id !== id));
-      deleteVoucherFromDB(id);
-      if (currentDetailEventId === id) closeEventDetail();
+      if (!requireTrip()) return;
+      try {
+        await VacationCloud.deleteEvent(id);
+        await deleteVoucherFromDB(id);
+        if (currentDetailEventId === id) closeEventDetail();
+      } catch (err) {
+        alert(err.message || 'Could not delete event.');
+      }
     }
 
     function openEventDetail(id) {
@@ -1474,7 +1622,7 @@
       renderTimeline();
     }
 
-    // Attachments (unlimited files + links) — localStorage-backed
+    // Attachments (unlimited files + links) — shared live via Firestore
     function getAttachmentsForEvent(eventId) {
       return getAllAttachments()
         .filter(a => a.eventId === eventId)
@@ -1552,13 +1700,14 @@
       return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     }
 
-    function persistAttachment(att) {
+    async function persistAttachment(att) {
       try {
-        upsertAttachments([att]);
+        if (!requireTrip()) return false;
+        await VacationCloud.upsertAttachment(att);
         return true;
       } catch (err) {
         console.error(err);
-        alert('Could not save attachment. The file may be too large for browser storage.');
+        alert(err.message || 'Could not save attachment. The file may be too large for shared sync.');
         return false;
       }
     }
@@ -1567,20 +1716,23 @@
       const input = event.target;
       const files = Array.from(input.files || []);
       if (!files.length) return;
+      if (!requireTrip()) {
+        input.value = '';
+        return;
+      }
 
       const pending = [];
       let remaining = files.length;
       let failed = 0;
 
-      const finishIfDone = () => {
+      const finishIfDone = async () => {
         if (remaining > 0) return;
         if (pending.length) {
           try {
-            upsertAttachments(pending);
-            refreshAttachments(eventId);
+            await upsertAttachments(pending);
           } catch (err) {
             console.error(err);
-            alert('Could not save one or more files. They may be too large for browser storage.');
+            alert(err.message || 'Could not save one or more files. They may be too large for shared sync.');
           }
         } else if (failed) {
           alert('Could not read the selected files.');
@@ -1602,6 +1754,7 @@
             kind: 'file',
             fileName: file.name,
             fileType: file.type || guessMimeFromName(file.name),
+            size: file.size || 0,
             dataUrl: e.target.result,
             createdAt: Date.now()
           });
@@ -1658,7 +1811,7 @@
       document.getElementById('linkModal').classList.add('hidden');
     }
 
-    function saveLinkAttachment(e) {
+    async function saveLinkAttachment(e) {
       e.preventDefault();
 
       const eventId = document.getElementById('linkEventId').value;
@@ -1666,7 +1819,7 @@
       const label = document.getElementById('linkLabel').value.trim();
       if (!eventId || !url) return;
 
-      const ok = persistAttachment({
+      const ok = await persistAttachment({
         id: newAttachmentId(),
         eventId,
         kind: 'link',
@@ -1676,7 +1829,6 @@
       });
       if (!ok) return;
       closeLinkModal();
-      refreshAttachments(eventId);
     }
 
     function viewAttachment(attachmentId) {
@@ -1764,12 +1916,14 @@
       window.open(res.url, '_blank', 'noopener,noreferrer');
     }
 
-    function deleteAttachment(attachmentId) {
+    async function deleteAttachment(attachmentId) {
       if (!confirm('Remove this attachment?')) return;
-      const all = getAllAttachments();
-      const att = all.find(a => a.id === attachmentId);
-      saveAllAttachments(all.filter(a => a.id !== attachmentId));
-      if (att?.eventId) refreshAttachments(att.eventId);
+      if (!requireTrip()) return;
+      try {
+        await VacationCloud.deleteAttachment(attachmentId);
+      } catch (err) {
+        alert(err.message || 'Could not remove attachment.');
+      }
     }
 
     function closeDocModal() {
@@ -1780,14 +1934,17 @@
       document.getElementById('docModal').classList.add('hidden');
     }
 
-    function deleteVoucherFromDB(eventId) {
-      saveAllAttachments(getAllAttachments().filter(a => a.eventId !== eventId));
+    async function deleteVoucherFromDB(eventId) {
+      if (!cloudState().tripId) return;
+      try {
+        await VacationCloud.deleteAttachmentsForEvent(eventId);
+      } catch (err) {
+        console.warn(err);
+      }
     }
 
     // Themes
     const THEME_KEY = 'vacation_theme';
-    const SYNC_TOKEN_KEY = 'vacation_sync_token';
-    const SYNC_GIST_KEY = 'vacation_sync_gist_id';
     const THEMES = [
       { id: 'midnight', name: 'Midnight', blurb: 'Current deep slate', preview: 'linear-gradient(135deg,#0f172a,#1e293b)' },
       { id: 'tyrrhenian', name: 'Tyrrhenian', blurb: 'Sea-teal evening', preview: 'linear-gradient(135deg,#042f2e,#0f766e)' },
@@ -1847,10 +2004,6 @@
 
     function openSettingsModal() {
       closeAppMenu();
-      document.getElementById('syncToken').value = localStorage.getItem(SYNC_TOKEN_KEY) || '';
-      document.getElementById('syncGistId').value = localStorage.getItem(SYNC_GIST_KEY) || '';
-      document.getElementById('syncStatus').textContent = '';
-      updateGistLink(localStorage.getItem(SYNC_GIST_KEY) || '');
       renderThemePicker();
       document.getElementById('settingsModal').classList.remove('hidden');
     }
@@ -1859,205 +2012,9 @@
       document.getElementById('settingsModal').classList.add('hidden');
     }
 
-    function updateGistLink(gistId) {
-      const wrap = document.getElementById('syncGistLinkWrap');
-      const link = document.getElementById('syncGistLink');
-      if (!gistId) {
-        wrap.classList.add('hidden');
-        return;
-      }
-      link.href = `https://gist.github.com/${gistId}`;
-      link.textContent = `https://gist.github.com/${gistId}`;
-      wrap.classList.remove('hidden');
-    }
-
-    function setSyncStatus(message, isError = false) {
-      const el = document.getElementById('syncStatus');
-      if (!el) return;
-      el.textContent = message;
-      el.style.color = isError ? '#f87171' : '';
-    }
-
-    // Export & Import Data Backup
-    function buildBackupPayload() {
-      return {
-        version: 2,
-        exportedAt: new Date().toISOString(),
-        events: getEvents(),
-        attachments: getAllAttachments()
-      };
-    }
-
-    function applyBackupData(data, { silent = false } = {}) {
-      if (!data || typeof data !== 'object') throw new Error('Invalid backup');
-
-      if (data.events) {
-        localStorage.setItem('vacation_events', JSON.stringify(data.events));
-      }
-
-      const imported = [];
-      if (Array.isArray(data.attachments)) {
-        data.attachments.forEach(a => imported.push(a));
-      }
-      // Support older backups that only had a single voucher per event
-      if (Array.isArray(data.vouchers)) {
-        data.vouchers.forEach(v => {
-          imported.push({
-            id: v.id || `legacy-${v.eventId}`,
-            eventId: v.eventId,
-            kind: 'file',
-            fileName: v.fileName || 'Voucher',
-            fileType: v.fileType || 'application/octet-stream',
-            dataUrl: v.dataUrl || '',
-            createdAt: v.createdAt || Date.now()
-          });
-        });
-      }
-      if (imported.length) upsertAttachments(imported);
-
-      renderTimeline();
-      if (!silent) alert('Data and attachments restored successfully!');
-    }
-
-    async function exportData() {
-      const payload = JSON.stringify(buildBackupPayload(), null, 2);
-      const blob = new Blob([payload], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `vacation_backup_${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-    }
-
-    function importData(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        try {
-          applyBackupData(JSON.parse(evt.target.result));
-        } catch (err) {
-          alert('Invalid backup file.');
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    async function pushBackupToGist() {
-      const token = document.getElementById('syncToken').value.trim();
-      let gistId = document.getElementById('syncGistId').value.trim();
-      if (!token) {
-        setSyncStatus('Add a GitHub token with gist access first.', true);
-        return;
-      }
-
-      localStorage.setItem(SYNC_TOKEN_KEY, token);
-      const bodyContent = JSON.stringify(buildBackupPayload(), null, 2);
-      // Rough size guard — large ticket PDFs can exceed practical gist limits
-      if (bodyContent.length > 900000) {
-        setSyncStatus('Backup is very large (attachments). Consider syncing events-only by removing big files first.', true);
-      }
-
-      const filePayload = {
-        description: 'Summer Vacation 2026 backup',
-        public: false,
-        files: {
-          'vacation_backup.json': { content: bodyContent }
-        }
-      };
-
-      setSyncStatus(gistId ? 'Uploading to existing gist…' : 'Creating private gist…');
-
-      try {
-        const url = gistId
-          ? `https://api.github.com/gists/${gistId}`
-          : 'https://api.github.com/gists';
-        const res = await fetch(url, {
-          method: gistId ? 'PATCH' : 'POST',
-          headers: {
-            'Accept': 'application/vnd.github+json',
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(filePayload)
-        });
-
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(errText || `GitHub error ${res.status}`);
-        }
-
-        const data = await res.json();
-        gistId = data.id;
-        document.getElementById('syncGistId').value = gistId;
-        localStorage.setItem(SYNC_GIST_KEY, gistId);
-        updateGistLink(gistId);
-        setSyncStatus(`Synced up at ${new Date().toLocaleString()}`);
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('Upload failed. Check token permissions / gist id, or file size.', true);
-      }
-    }
-
-    async function pullBackupFromGist() {
-      const token = document.getElementById('syncToken').value.trim();
-      const gistId = document.getElementById('syncGistId').value.trim() || localStorage.getItem(SYNC_GIST_KEY) || '';
-      if (!gistId) {
-        setSyncStatus('Add a Gist ID (or upload once first).', true);
-        return;
-      }
-
-      if (token) localStorage.setItem(SYNC_TOKEN_KEY, token);
-      localStorage.setItem(SYNC_GIST_KEY, gistId);
-      setSyncStatus('Downloading backup…');
-
-      try {
-        const headers = { 'Accept': 'application/vnd.github+json' };
-        if (token) headers.Authorization = `Bearer ${token}`;
-
-        const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
-        if (!res.ok) throw new Error(`GitHub error ${res.status}`);
-        const gist = await res.json();
-
-        const file = gist.files?.vacation_backup.json
-          || Object.values(gist.files || {}).find(f => (f.filename || '').endsWith('.json'));
-        if (!file) throw new Error('No JSON file in gist');
-
-        let content = file.content;
-        if (file.truncated && file.raw_url) {
-          const rawRes = await fetch(file.raw_url, { headers });
-          content = await rawRes.text();
-        }
-
-        applyBackupData(JSON.parse(content), { silent: true });
-        updateGistLink(gistId);
-        setSyncStatus(`Synced down at ${new Date().toLocaleString()}`);
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('Download failed. Check gist id / token, or use a raw URL below.', true);
-      }
-    }
-
-    async function pullBackupFromUrl() {
-      const url = document.getElementById('syncUrl').value.trim();
-      if (!url) {
-        setSyncStatus('Paste a raw JSON URL first.', true);
-        return;
-      }
-      setSyncStatus('Pulling from URL…');
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        applyBackupData(await res.json(), { silent: true });
-        setSyncStatus(`Restored from URL at ${new Date().toLocaleString()}`);
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('Could not pull that URL. It must be publicly readable JSON.', true);
-      }
-    }
-
-    // Apply saved theme ASAP
+    // Apply theme, then start shared cloud auth
     applyTheme(localStorage.getItem(THEME_KEY) || 'midnight');
+    initApp();
 
     // Progressive Web App — install + offline cache
     let deferredInstallPrompt = null;
