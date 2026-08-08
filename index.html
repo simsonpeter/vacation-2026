@@ -453,16 +453,8 @@
             </label>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-2" id="endDateRow">
-          <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventEndDate">Check-out Date</label>
-            <input type="date" id="eventEndDate" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
-          </div>
-          <div class="flex items-end pb-0.5">
-            <p id="stayHint" class="text-[11px] text-slate-500 leading-snug">For Hotel / Airbnb stays, set check-in and check-out.</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
+        <!-- Non-stay times -->
+        <div class="grid grid-cols-2 gap-2" id="regularTimeRow">
           <div>
             <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventTime">Start Time</label>
             <input type="time" id="eventTime" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
@@ -470,6 +462,33 @@
           <div>
             <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventEndTime">End / Return Time (Optional)</label>
             <input type="time" id="eventEndTime" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <!-- Stay check-in / check-out schedule (appears twice on timeline) -->
+        <div id="stayScheduleBlock" class="space-y-2 hidden">
+          <p class="text-[11px] text-slate-500 leading-snug">
+            <i class="fa-solid fa-circle-info mr-1"></i>
+            Stays are listed twice on the timeline: check-in and check-out.
+          </p>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Check-in Time</label>
+              <input type="time" id="eventTimeStay" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Check-out Date</label>
+              <input type="date" id="eventEndDate" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Check-out Time</label>
+              <input type="time" id="eventEndTimeStay" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+            </div>
+            <div class="flex items-end pb-0.5">
+              <p class="text-[11px] text-slate-500 leading-snug">Check in after landing, check out before the return flight.</p>
+            </div>
           </div>
         </div>
         <div>
@@ -598,7 +617,7 @@
     // Initial pre-loaded itinerary data
     const initialEvents = [
       { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) → Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
-      { id: 'stay-rome', title: 'Rome Airbnb Stay', type: 'STAY', date: '2026-08-10', time: '15:00', endDate: '2026-08-15', endTime: '11:00', location: 'Airbnb — Centro Storico', address: 'Via dei Serpenti, 00184 Roma RM, Italy', notes: 'Check-in after 15:00. Self check-in with lockbox code in confirmation email.' },
+      { id: 'stay-rome', title: 'Rome Airbnb', type: 'STAY', categories: ['STAY'], date: '2026-08-10', time: '15:00', endDate: '2026-08-15', endTime: '11:00', location: 'Airbnb — Centro Storico', address: 'Via dei Serpenti, 00184 Roma RM, Italy', notes: 'Check-in after 15:00. Check out by 11:00 before the return flight. Self check-in with lockbox code in confirmation email.' },
       { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', address: 'Piazza del Colosseo, 1, 00184 Roma RM, Italy', notes: 'Arrive 25 mins early for security checks.' },
       { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', categories: ['TRAIN', 'ACTIVITY'], date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', address: 'Piazza dei Miracoli, 56126 Pisa PI, Italy', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
       { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) → Brussels (BRU)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
@@ -901,89 +920,97 @@
       return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     }
 
-    function isUpcomingEvent(ev) {
-      if (!ev || !ev.date) return false;
-      const today = getTodayDate();
-      const nowTime = getNowTime();
-
-      // Stays stay visible until check-out ends
-      if (isStayType(ev) && ev.endDate) {
-        if (ev.endDate > today) return true;
-        if (ev.endDate < today) return false;
-        return padTime(ev.endTime || '23:59') >= nowTime;
-      }
-
-      // String compare YYYY-MM-DD — avoids Invalid Date / timezone traps
-      if (ev.date > today) return true;
-      if (ev.date < today) return false;
-      return padTime(ev.time) >= nowTime;
-    }
-
-    function isTodayEvent(ev) {
-      const today = getTodayDate();
-      if (isStayType(ev) && ev.endDate) {
-        return ev.date <= today && ev.endDate >= today;
-      }
-      return ev.date === today;
-    }
-
-    function isFinishedEvent(ev) {
-      // Anything that is no longer upcoming/active
-      return !!ev && !isUpcomingEvent(ev);
-    }
-
-    function eventSortKey(ev, { useEnd = false } = {}) {
-      // Default: always sort by start / check-in date+time so stays land
-      // on arrival day (e.g. Airbnb after the Rome flight), not by checkout.
-      if (useEnd) {
+    function expandEventsForTimeline(events) {
+      const items = [];
+      events.forEach((ev) => {
         if (isStayType(ev) && ev.endDate) {
-          return `${ev.endDate}${padTime(ev.endTime || '23:59')}`;
+          items.push({
+            ...ev,
+            stayPhase: 'checkin',
+            sortDate: ev.date,
+            sortTime: ev.time || '15:00',
+            displayTitle: `${ev.title} — Check-in`,
+            occurrenceKey: `${ev.id}-checkin`
+          });
+          items.push({
+            ...ev,
+            stayPhase: 'checkout',
+            sortDate: ev.endDate,
+            sortTime: ev.endTime || '11:00',
+            displayTitle: `${ev.title} — Check-out`,
+            occurrenceKey: `${ev.id}-checkout`
+          });
+        } else {
+          items.push({
+            ...ev,
+            stayPhase: null,
+            sortDate: ev.date,
+            sortTime: ev.time || '00:00',
+            displayTitle: ev.title,
+            occurrenceKey: ev.id
+          });
         }
-        return `${ev.date || ''}${padTime(ev.endTime || ev.time || '00:00')}`;
-      }
-      return `${ev.date || ''}${padTime(ev.time || '00:00')}`;
+      });
+      return items;
     }
 
-    function sortEvents(events, { newestFirst = false, useEnd = false } = {}) {
-      return [...events].sort((a, b) => {
-        const byDateTime = eventSortKey(a, { useEnd }).localeCompare(eventSortKey(b, { useEnd }));
+    function isUpcomingOccurrence(item) {
+      if (!item?.sortDate) return false;
+      const today = getTodayDate();
+      if (item.sortDate > today) return true;
+      if (item.sortDate < today) return false;
+      return padTime(item.sortTime) >= getNowTime();
+    }
+
+    function sortTimelineItems(items, { newestFirst = false } = {}) {
+      return [...items].sort((a, b) => {
+        const ka = `${a.sortDate}${padTime(a.sortTime)}`;
+        const kb = `${b.sortDate}${padTime(b.sortTime)}`;
+        const byDateTime = ka.localeCompare(kb);
         if (byDateTime !== 0) return newestFirst ? -byDateTime : byDateTime;
-        return (a.title || '').localeCompare(b.title || '');
+        const phaseRank = { checkin: 0, checkout: 1 };
+        const pa = phaseRank[a.stayPhase] ?? 0;
+        const pb = phaseRank[b.stayPhase] ?? 0;
+        if (pa !== pb) return pa - pb;
+        return (a.displayTitle || a.title || '').localeCompare(b.displayTitle || b.title || '');
       });
     }
 
-    function filterEvents(events) {
+    function getTimelineItems() {
+      const expanded = expandEventsForTimeline(getEvents());
       switch (currentFilter) {
         case 'TODAY':
-          return events.filter(isTodayEvent);
+          return sortTimelineItems(expanded.filter(i => i.sortDate === getTodayDate()));
         case 'UPCOMING':
-          // Future / active events only — never finished past events
-          return events.filter(isUpcomingEvent);
+          return sortTimelineItems(expanded.filter(isUpcomingOccurrence));
         case 'FINISHED':
-          return sortEvents(events.filter(isFinishedEvent), { newestFirst: true, useEnd: true });
+          return sortTimelineItems(expanded.filter(i => !isUpcomingOccurrence(i)), { newestFirst: true });
         case 'STAY':
-          return events.filter(isStayType);
+          return sortTimelineItems(expanded.filter(i => isStayType(i)));
         case 'FLIGHT':
         case 'TRAIN':
         case 'BUS':
         case 'ACTIVITY':
         case 'HOTEL':
-          return events.filter(e => eventHasCategory(e, currentFilter));
+          return sortTimelineItems(expanded.filter(i => eventHasCategory(i, currentFilter)));
         case 'ALL':
         default:
-          return events;
+          return sortTimelineItems(expanded);
       }
     }
 
     function updateFormForType() {
       const type = document.getElementById('eventType').value;
       const stay = type === 'STAY' || type === 'HOTEL';
-      const endDateRow = document.getElementById('endDateRow');
+      const regularTimeRow = document.getElementById('regularTimeRow');
+      const stayScheduleBlock = document.getElementById('stayScheduleBlock');
       const endDateInput = document.getElementById('eventEndDate');
+      const eventTime = document.getElementById('eventTime');
+      const eventEndTime = document.getElementById('eventEndTime');
+      const eventTimeStay = document.getElementById('eventTimeStay');
+      const eventEndTimeStay = document.getElementById('eventEndTimeStay');
 
       document.getElementById('labelEventDate').innerText = stay ? 'Check-in Date' : 'Date';
-      document.getElementById('labelEventTime').innerText = stay ? 'Check-in Time' : 'Start Time';
-      document.getElementById('labelEventEndTime').innerText = stay ? 'Check-out Time' : 'End / Return Time (Optional)';
       document.getElementById('labelEventLocation').innerText = stay ? 'Property / Stay Name' : 'Location / Route';
       document.getElementById('labelEventAddress').innerText = stay ? 'Stay Address' : 'Address';
       document.getElementById('eventLocation').placeholder = stay
@@ -993,12 +1020,45 @@
         ? 'Full street address of hotel / Airbnb'
         : 'e.g. Piazza del Colosseo, 1, 00184 Roma RM, Italy';
 
-      if (endDateRow) endDateRow.classList.toggle('hidden', !stay);
+      if (stay) {
+        // Copy current values into stay fields when switching
+        if (eventTime?.value && eventTimeStay && !eventTimeStay.value) eventTimeStay.value = eventTime.value;
+        if (eventEndTime?.value && eventEndTimeStay && !eventEndTimeStay.value) eventEndTimeStay.value = eventEndTime.value;
+      } else {
+        if (eventTimeStay?.value && eventTime) eventTime.value = eventTimeStay.value;
+        if (eventEndTimeStay?.value && eventEndTime) eventEndTime.value = eventEndTimeStay.value;
+      }
+
+      regularTimeRow?.classList.toggle('hidden', stay);
+      stayScheduleBlock?.classList.toggle('hidden', !stay);
       if (endDateInput) endDateInput.required = stay;
+      if (eventTime) eventTime.required = !stay;
+      if (eventTimeStay) eventTimeStay.required = stay;
 
       // Keep extra-category checks in sync with primary type
       const currentExtras = getSelectedExtraCategories(type);
       setExtraCategoryChecks([normalizeCategory(type), ...currentExtras], type);
+    }
+
+    function readFormTimeFields(isStay) {
+      if (isStay) {
+        return {
+          time: document.getElementById('eventTimeStay').value || document.getElementById('eventTime').value,
+          endTime: document.getElementById('eventEndTimeStay').value || document.getElementById('eventEndTime').value
+        };
+      }
+      return {
+        time: document.getElementById('eventTime').value,
+        endTime: document.getElementById('eventEndTime').value
+      };
+    }
+
+    function fillFormTimeFields(ev, isStay) {
+      document.getElementById('eventTime').value = ev.time || '';
+      document.getElementById('eventEndTime').value = ev.endTime || '';
+      document.getElementById('eventTimeStay').value = ev.time || '';
+      document.getElementById('eventEndTimeStay').value = ev.endTime || '';
+      document.getElementById('eventEndDate').value = ev.endDate || '';
     }
 
     function formatDayLabel(dateStr) {
@@ -1029,13 +1089,9 @@
     }
 
     function renderTimeline() {
-      const events = currentFilter === 'FINISHED'
-        ? filterEvents(getEvents())
-        : filterEvents(sortEvents(getEvents()));
+      const filtered = getTimelineItems();
       const timeline = document.getElementById('timeline');
       timeline.innerHTML = '';
-
-      const filtered = events;
 
       if (filtered.length === 0) {
         timeline.innerHTML = `<p class="text-center text-slate-500 py-8 text-sm">${emptyFilterMessage()}</p>`;
@@ -1045,17 +1101,28 @@
       let lastDate = null;
 
       filtered.forEach(ev => {
-        if (ev.date !== lastDate) {
-          lastDate = ev.date;
+        if (ev.sortDate !== lastDate) {
+          lastDate = ev.sortDate;
           const heading = document.createElement('div');
           heading.className = 'relative pl-8 pt-2';
           heading.innerHTML = `
             <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              ${formatDayLabel(ev.date)}
+              ${formatDayLabel(ev.sortDate)}
             </p>
           `;
           timeline.appendChild(heading);
         }
+
+        const phaseBadge = ev.stayPhase === 'checkin'
+          ? '<span class="ml-1 text-[10px] font-semibold text-emerald-400">Check-in</span>'
+          : ev.stayPhase === 'checkout'
+            ? '<span class="ml-1 text-[10px] font-semibold text-amber-400">Check-out</span>'
+            : '';
+        const timeLabel = ev.stayPhase
+          ? `${ev.sortTime}${phaseBadge ? '' : ''}`
+          : `${ev.time || ''}${ev.endTime ? ' - ' + ev.endTime : ''}`;
+        const showAttachments = !ev.stayPhase || ev.stayPhase === 'checkin';
+        const statusDomId = `voucher-status-${ev.occurrenceKey}`;
 
         const item = document.createElement('div');
         item.className = 'relative pl-8 group';
@@ -1063,7 +1130,9 @@
         item.innerHTML = `
           <!-- Category Dot -->
           <div class="absolute left-1.5 top-1.5 w-5 h-5 rounded-full bg-slate-800 border-2 border-brand-500 flex items-center justify-center text-[10px] text-brand-500">
-            ${typeIcons[ev.type] || '<i class="fa-solid fa-location-dot"></i>'}
+            ${ev.stayPhase === 'checkout'
+              ? '<i class="fa-solid fa-door-open"></i>'
+              : (typeIcons[ev.type] || '<i class="fa-solid fa-location-dot"></i>')}
           </div>
 
           <!-- Card Content -->
@@ -1071,11 +1140,9 @@
             <div class="flex items-start justify-between">
               <div>
                 <span class="inline-block text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-0.5 rounded bg-brand-500/10 mb-1">
-                  ${isStayType(ev) && ev.endDate
-                    ? `${ev.date} ${ev.time || ''} → ${ev.endDate} ${ev.endTime || ''}`.trim()
-                    : `${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}`}
+                  ${escapeHtml(timeLabel)}${phaseBadge}
                 </span>
-                <h3 class="font-semibold text-slate-100 text-base">${escapeHtml(ev.title)}</h3>
+                <h3 class="font-semibold text-slate-100 text-base">${escapeHtml(ev.displayTitle || ev.title)}</h3>
                 ${(() => {
                   const cats = getEventCategories(ev).filter(c => c !== normalizeCategory(ev.type));
                   if (!cats.length) return '';
@@ -1094,9 +1161,10 @@
             ${ev.address ? `<p class="text-xs ${isStayType(ev) ? 'text-slate-200' : 'text-slate-400'} flex items-start gap-1.5"><i class="fa-solid fa-location-dot shrink-0 mt-0.5"></i><span class="line-clamp-2">${escapeHtml(ev.address)}</span></p>` : ''}
             ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg line-clamp-2">${escapeHtml(ev.notes)}</p>` : ''}
 
+            ${showAttachments ? `
             <!-- Attachments Section -->
-            <div class="pt-2 border-t border-slate-700/50 space-y-2" id="voucher-section-${ev.id}" onclick="event.stopPropagation()">
-              <div id="voucher-status-${ev.id}" class="text-xs text-slate-400 space-y-1">Loading attachments...</div>
+            <div class="pt-2 border-t border-slate-700/50 space-y-2" id="voucher-section-${ev.occurrenceKey}" onclick="event.stopPropagation()">
+              <div id="${statusDomId}" class="text-xs text-slate-400 space-y-1">Loading attachments...</div>
               <div class="flex items-center gap-1.5 justify-end">
                 <button type="button" onclick="openLinkModal('${ev.id}')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600"><i class="fa-solid fa-link mr-1"></i>Link</button>
                 <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
@@ -1104,11 +1172,14 @@
                   <input type="file" class="hidden" accept="image/*,application/pdf" multiple onchange="uploadVoucher('${ev.id}', event)">
                 </label>
               </div>
-            </div>
+            </div>` : `
+            <div class="pt-2 border-t border-slate-700/50">
+              <p class="text-[11px] text-slate-500"><i class="fa-solid fa-paperclip mr-1"></i>Attachments are on the check-in card</p>
+            </div>`}
           </div>
         `;
         timeline.appendChild(item);
-        renderAttachments(ev.id);
+        if (showAttachments) renderAttachments(ev.id, statusDomId);
       });
     }
 
@@ -1123,12 +1194,10 @@
         const primary = editingEvent.type === 'HOTEL' ? 'STAY' : editingEvent.type;
         document.getElementById('eventType').value = primary;
         document.getElementById('eventDate').value = editingEvent.date;
-        document.getElementById('eventEndDate').value = editingEvent.endDate || '';
-        document.getElementById('eventTime').value = editingEvent.time;
-        document.getElementById('eventEndTime').value = editingEvent.endTime || '';
         document.getElementById('eventLocation').value = editingEvent.location || '';
         document.getElementById('eventAddress').value = editingEvent.address || '';
         document.getElementById('eventNotes').value = editingEvent.notes || '';
+        fillFormTimeFields(editingEvent, primary === 'STAY');
         updateFormForType();
         setExtraCategoryChecks(getEventCategories(editingEvent), primary);
       } else {
@@ -1151,6 +1220,8 @@
       const type = normalizeCategory(document.getElementById('eventType').value);
       const extras = getSelectedExtraCategories(type);
       const categories = [...new Set([type, ...extras])];
+      const isStay = type === 'STAY';
+      const times = readFormTimeFields(isStay);
 
       const newEv = {
         id,
@@ -1158,13 +1229,18 @@
         type,
         categories,
         date: document.getElementById('eventDate').value,
-        endDate: document.getElementById('eventEndDate').value,
-        time: document.getElementById('eventTime').value,
-        endTime: document.getElementById('eventEndTime').value,
+        endDate: isStay ? document.getElementById('eventEndDate').value : '',
+        time: times.time,
+        endTime: times.endTime,
         location: document.getElementById('eventLocation').value,
         address: document.getElementById('eventAddress').value,
         notes: document.getElementById('eventNotes').value
       };
+
+      if (isStay && (!newEv.endDate || !newEv.time || !newEv.endTime)) {
+        alert('Please set check-in time, check-out date, and check-out time for stays.');
+        return;
+      }
 
       const index = events.findIndex(x => x.id === id);
       if (index >= 0) events[index] = newEv;
@@ -1314,12 +1390,21 @@
       }).join('');
     }
 
-    function renderAttachments(eventId) {
+    function renderAttachments(eventId, statusDomId = null) {
       const attachments = getAttachmentsForEvent(eventId);
-      const cardContainer = document.getElementById(`voucher-status-${eventId}`);
-      if (cardContainer) {
-        cardContainer.innerHTML = renderAttachmentRows(attachments, { showDelete: true });
-      }
+      const candidateIds = statusDomId
+        ? [statusDomId]
+        : [
+            `voucher-status-${eventId}`,
+            `voucher-status-${eventId}-checkin`,
+            `voucher-status-${eventId}-checkout`
+          ];
+      candidateIds.forEach((domId) => {
+        const cardContainer = document.getElementById(domId);
+        if (cardContainer) {
+          cardContainer.innerHTML = renderAttachmentRows(attachments, { showDelete: true });
+        }
+      });
       if (currentDetailEventId === eventId) {
         const detailContainer = document.getElementById('detailVoucherStatus');
         if (detailContainer) {
