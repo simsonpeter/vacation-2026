@@ -1064,8 +1064,12 @@
     }
 
     function getNextUpcomingOccurrence() {
+      const now = Date.now();
       const upcoming = sortTimelineItems(
-        expandEventsForTimeline(getEvents()).filter(isUpcomingOccurrence)
+        expandEventsForTimeline(getEvents()).filter((item) => {
+          const when = occurrenceToDate(item);
+          return when && when.getTime() > now;
+        })
       );
       return upcoming[0] || null;
     }
@@ -1077,6 +1081,7 @@
       const unitsEl = document.getElementById('countdownUnits');
       const emptyEl = document.getElementById('countdownEmpty');
       const openBtn = document.getElementById('countdownOpenBtn');
+      const previousId = countdownTarget?.occurrenceKey;
 
       if (!next) {
         countdownTarget = null;
@@ -1085,6 +1090,7 @@
         unitsEl?.classList.add('hidden');
         emptyEl?.classList.remove('hidden');
         openBtn?.classList.add('hidden');
+        if (previousId) renderTimeline();
         return;
       }
 
@@ -1110,10 +1116,8 @@
       emptyEl?.classList.add('hidden');
       openBtn?.classList.remove('hidden');
 
-      // When an event starts, refresh list so countdown jumps to the next one
-      if (diffMs === 0) {
-        renderTimeline();
-      }
+      // Refresh timeline when the next-up event changes
+      if (previousId && previousId !== next.occurrenceKey) renderTimeline();
     }
 
     function openCountdownEvent() {
