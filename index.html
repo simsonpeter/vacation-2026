@@ -224,6 +224,36 @@
       border-radius: 1rem;
     }
 
+    .countdown-card {
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--brand-600) 22%, var(--app-surface)), var(--app-surface));
+      border: 1px solid var(--app-border);
+      border-radius: 1rem;
+    }
+    .countdown-unit {
+      min-width: 3.1rem;
+      background: color-mix(in srgb, var(--app-bg) 55%, transparent);
+      border: 1px solid var(--app-border);
+      border-radius: 0.75rem;
+      padding: 0.45rem 0.35rem;
+      text-align: center;
+    }
+    .countdown-unit strong {
+      display: block;
+      font-size: 1.15rem;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      color: var(--app-text);
+    }
+    .countdown-unit span {
+      display: block;
+      margin-top: 0.15rem;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--app-muted);
+    }
+
     .menu-panel {
       background: var(--app-surface) !important;
       border-color: var(--app-border) !important;
@@ -288,6 +318,28 @@
 
   <!-- Filter & Actions Bar -->
   <main class="flex-1 max-w-3xl w-full mx-auto p-4 space-y-4 pb-28">
+    <section id="countdownCard" class="countdown-card p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-[10px] uppercase tracking-wider font-semibold text-brand-500">
+            <i class="fa-solid fa-hourglass-half mr-1"></i>Next up
+          </p>
+          <h2 id="countdownTitle" class="mt-1 text-sm font-semibold text-slate-100 truncate">Loading…</h2>
+          <p id="countdownMeta" class="mt-0.5 text-xs text-slate-400 truncate"></p>
+        </div>
+        <button type="button" id="countdownOpenBtn" onclick="openCountdownEvent()" class="shrink-0 text-xs text-brand-500 hover:underline hidden">
+          View <i class="fa-solid fa-arrow-right ml-0.5"></i>
+        </button>
+      </div>
+      <div id="countdownUnits" class="mt-3 flex flex-wrap gap-2">
+        <div class="countdown-unit"><strong id="cdDays">0</strong><span>Days</span></div>
+        <div class="countdown-unit"><strong id="cdHours">0</strong><span>Hours</span></div>
+        <div class="countdown-unit"><strong id="cdMins">0</strong><span>Mins</span></div>
+        <div class="countdown-unit"><strong id="cdSecs">0</strong><span>Secs</span></div>
+      </div>
+      <p id="countdownEmpty" class="hidden mt-2 text-xs text-slate-400">No upcoming events left.</p>
+    </section>
+
     <div class="space-y-3">
       <div class="app-top-tabs grid grid-cols-4 overflow-hidden">
         <button onclick="filterCategory('UPCOMING')" class="time-filter-btn nav-active flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 text-[10px] font-medium transition" id="filter-UPCOMING">
@@ -801,6 +853,7 @@
       await migrateFromIndexedDB();
       updateFormForType();
       renderTimeline();
+      startCountdownTicker();
     }
 
     // Start app immediately; IDB migration happens in background-friendly await
@@ -829,6 +882,7 @@
     function saveEvents(events) {
       localStorage.setItem('vacation_events', JSON.stringify(events));
       renderTimeline();
+      updateCountdown();
     }
 
     const typeIcons = {
@@ -997,6 +1051,79 @@
         default:
           return sortTimelineItems(expanded);
       }
+    }
+
+    let countdownTimer = null;
+    let countdownTarget = null;
+
+    function occurrenceToDate(item) {
+      if (!item?.sortDate) return null;
+      const [y, m, d] = item.sortDate.split('-').map(Number);
+      const [hh, mm] = padTime(item.sortTime || '00:00').split(':').map(Number);
+      return new Date(y, m - 1, d, hh, mm, 0, 0);
+    }
+
+    function getNextUpcomingOccurrence() {
+      const upcoming = sortTimelineItems(
+        expandEventsForTimeline(getEvents()).filter(isUpcomingOccurrence)
+      );
+      return upcoming[0] || null;
+    }
+
+    function updateCountdown() {
+      const next = getNextUpcomingOccurrence();
+      const titleEl = document.getElementById('countdownTitle');
+      const metaEl = document.getElementById('countdownMeta');
+      const unitsEl = document.getElementById('countdownUnits');
+      const emptyEl = document.getElementById('countdownEmpty');
+      const openBtn = document.getElementById('countdownOpenBtn');
+
+      if (!next) {
+        countdownTarget = null;
+        if (titleEl) titleEl.textContent = 'All caught up';
+        if (metaEl) metaEl.textContent = 'No upcoming events';
+        unitsEl?.classList.add('hidden');
+        emptyEl?.classList.remove('hidden');
+        openBtn?.classList.add('hidden');
+        return;
+      }
+
+      const targetDate = occurrenceToDate(next);
+      countdownTarget = next;
+      const diffMs = Math.max(0, targetDate.getTime() - Date.now());
+      const totalSecs = Math.floor(diffMs / 1000);
+      const days = Math.floor(totalSecs / 86400);
+      const hours = Math.floor((totalSecs % 86400) / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+
+      if (titleEl) titleEl.textContent = next.displayTitle || next.title || 'Next event';
+      if (metaEl) {
+        const when = `${formatDayLabel(next.sortDate)} · ${padTime(next.sortTime)}`;
+        metaEl.textContent = next.location ? `${when} · ${next.location}` : when;
+      }
+      document.getElementById('cdDays').textContent = String(days);
+      document.getElementById('cdHours').textContent = String(hours).padStart(2, '0');
+      document.getElementById('cdMins').textContent = String(mins).padStart(2, '0');
+      document.getElementById('cdSecs').textContent = String(secs).padStart(2, '0');
+      unitsEl?.classList.remove('hidden');
+      emptyEl?.classList.add('hidden');
+      openBtn?.classList.remove('hidden');
+
+      // When an event starts, refresh list so countdown jumps to the next one
+      if (diffMs === 0) {
+        renderTimeline();
+      }
+    }
+
+    function openCountdownEvent() {
+      if (countdownTarget?.id) openEventDetail(countdownTarget.id);
+    }
+
+    function startCountdownTicker() {
+      updateCountdown();
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = setInterval(updateCountdown, 1000);
     }
 
     function updateFormForType() {
