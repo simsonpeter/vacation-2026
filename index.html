@@ -932,16 +932,21 @@
       return !!ev && !isUpcomingEvent(ev);
     }
 
-    function eventSortKey(ev) {
-      if (isStayType(ev) && ev.endDate) {
-        return `${ev.endDate}${padTime(ev.endTime || '23:59')}`;
+    function eventSortKey(ev, { useEnd = false } = {}) {
+      // Default: always sort by start / check-in date+time so stays land
+      // on arrival day (e.g. Airbnb after the Rome flight), not by checkout.
+      if (useEnd) {
+        if (isStayType(ev) && ev.endDate) {
+          return `${ev.endDate}${padTime(ev.endTime || '23:59')}`;
+        }
+        return `${ev.date || ''}${padTime(ev.endTime || ev.time || '00:00')}`;
       }
       return `${ev.date || ''}${padTime(ev.time || '00:00')}`;
     }
 
-    function sortEvents(events, { newestFirst = false } = {}) {
+    function sortEvents(events, { newestFirst = false, useEnd = false } = {}) {
       return [...events].sort((a, b) => {
-        const byDateTime = eventSortKey(a).localeCompare(eventSortKey(b));
+        const byDateTime = eventSortKey(a, { useEnd }).localeCompare(eventSortKey(b, { useEnd }));
         if (byDateTime !== 0) return newestFirst ? -byDateTime : byDateTime;
         return (a.title || '').localeCompare(b.title || '');
       });
@@ -955,7 +960,7 @@
           // Future / active events only — never finished past events
           return events.filter(isUpcomingEvent);
         case 'FINISHED':
-          return sortEvents(events.filter(isFinishedEvent), { newestFirst: true });
+          return sortEvents(events.filter(isFinishedEvent), { newestFirst: true, useEnd: true });
         case 'STAY':
           return events.filter(isStayType);
         case 'FLIGHT':
