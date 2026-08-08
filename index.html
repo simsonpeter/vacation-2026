@@ -398,7 +398,7 @@
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Type</label>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Primary type</label>
             <select id="eventType" onchange="updateFormForType()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
               <option value="FLIGHT">Flight</option>
               <option value="TRAIN">Train</option>
@@ -410,6 +410,27 @@
           <div>
             <label class="block text-xs font-medium text-slate-400 mb-1" id="labelEventDate">Date</label>
             <input type="date" id="eventDate" required class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Also show in</label>
+          <p class="text-[11px] text-slate-500 mb-2">Optional — pick extra tabs (e.g. Pisa train day trip + Sights).</p>
+          <div id="extraCategories" class="flex flex-wrap gap-2">
+            <label class="extra-cat inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" value="FLIGHT" class="accent-brand-500"> Flight
+            </label>
+            <label class="extra-cat inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" value="TRAIN" class="accent-brand-500"> Train
+            </label>
+            <label class="extra-cat inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" value="BUS" class="accent-brand-500"> Bus
+            </label>
+            <label class="extra-cat inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" value="ACTIVITY" class="accent-brand-500"> Sights
+            </label>
+            <label class="extra-cat inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" value="STAY" class="accent-brand-500"> Stay
+            </label>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2" id="endDateRow">
@@ -559,7 +580,7 @@
       { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) → Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
       { id: 'stay-rome', title: 'Rome Airbnb Stay', type: 'STAY', date: '2026-08-10', time: '15:00', endDate: '2026-08-15', endTime: '11:00', location: 'Airbnb — Centro Storico', address: 'Via dei Serpenti, 00184 Roma RM, Italy', notes: 'Check-in after 15:00. Self check-in with lockbox code in confirmation email.' },
       { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', address: 'Piazza del Colosseo, 1, 00184 Roma RM, Italy', notes: 'Arrive 25 mins early for security checks.' },
-      { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', address: 'Piazza dei Miracoli, 56126 Pisa PI, Italy', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
+      { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', categories: ['TRAIN', 'ACTIVITY'], date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', address: 'Piazza dei Miracoli, 56126 Pisa PI, Italy', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
       { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) → Brussels (BRU)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
     ];
 
@@ -701,6 +722,25 @@
               changed = true;
               next = { ...next, type: 'STAY' };
             }
+            // Backfill multi-categories from seed (e.g. Pisa = Train + Sights)
+            if (Array.isArray(seed?.categories) && seed.categories.length) {
+              const current = new Set([
+                ...(Array.isArray(next.categories) ? next.categories : []),
+                next.type
+              ].filter(Boolean).map(c => c === 'HOTEL' ? 'STAY' : c));
+              let added = false;
+              seed.categories.forEach(cat => {
+                const normalized = cat === 'HOTEL' ? 'STAY' : cat;
+                if (!current.has(normalized)) {
+                  current.add(normalized);
+                  added = true;
+                }
+              });
+              if (added || !Array.isArray(next.categories)) {
+                changed = true;
+                next = { ...next, categories: [...current] };
+              }
+            }
             return next;
           });
 
@@ -761,8 +801,47 @@
       HOTEL: '<i class="fa-solid fa-hotel"></i>'
     };
 
+    const ALL_CATEGORIES = ['FLIGHT', 'TRAIN', 'BUS', 'ACTIVITY', 'STAY'];
+
+    function normalizeCategory(cat) {
+      if (cat === 'HOTEL') return 'STAY';
+      return cat;
+    }
+
+    function getEventCategories(ev) {
+      if (!ev) return [];
+      const fromList = Array.isArray(ev.categories) ? ev.categories : [];
+      const merged = [ev.type, ...fromList]
+        .map(normalizeCategory)
+        .filter(Boolean);
+      return [...new Set(merged)];
+    }
+
+    function eventHasCategory(ev, cat) {
+      const wanted = normalizeCategory(cat);
+      return getEventCategories(ev).includes(wanted);
+    }
+
     function isStayType(ev) {
-      return ev?.type === 'STAY' || ev?.type === 'HOTEL';
+      return eventHasCategory(ev, 'STAY');
+    }
+
+    function getSelectedExtraCategories(primaryType) {
+      const primary = normalizeCategory(primaryType);
+      return [...document.querySelectorAll('#extraCategories input[type="checkbox"]:checked')]
+        .map(cb => normalizeCategory(cb.value))
+        .filter(cat => cat && cat !== primary);
+    }
+
+    function setExtraCategoryChecks(categories, primaryType) {
+      const selected = new Set((categories || []).map(normalizeCategory));
+      const primary = normalizeCategory(primaryType);
+      document.querySelectorAll('#extraCategories input[type="checkbox"]').forEach(cb => {
+        const value = normalizeCategory(cb.value);
+        cb.checked = value !== primary && selected.has(value);
+        cb.disabled = value === primary;
+        cb.parentElement?.classList.toggle('opacity-40', value === primary);
+      });
     }
 
     function getTodayDate() {
@@ -848,7 +927,7 @@
         case 'BUS':
         case 'ACTIVITY':
         case 'HOTEL':
-          return events.filter(e => e.type === currentFilter);
+          return events.filter(e => eventHasCategory(e, currentFilter));
         case 'ALL':
         default:
           return events;
@@ -875,6 +954,10 @@
 
       if (endDateRow) endDateRow.classList.toggle('hidden', !stay);
       if (endDateInput) endDateInput.required = stay;
+
+      // Keep extra-category checks in sync with primary type
+      const currentExtras = getSelectedExtraCategories(type);
+      setExtraCategoryChecks([normalizeCategory(type), ...currentExtras], type);
     }
 
     function formatDayLabel(dateStr) {
@@ -952,6 +1035,13 @@
                     : `${ev.time}${ev.endTime ? ' - ' + ev.endTime : ''}`}
                 </span>
                 <h3 class="font-semibold text-slate-100 text-base">${escapeHtml(ev.title)}</h3>
+                ${(() => {
+                  const cats = getEventCategories(ev).filter(c => c !== normalizeCategory(ev.type));
+                  if (!cats.length) return '';
+                  return `<p class="mt-1 flex flex-wrap gap-1">${cats.map(c =>
+                    `<span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-900/50 border border-slate-700/60 text-slate-400">${typeIcons[c] || ''} ${escapeHtml((typeLabels[c] || c).replace(/<[^>]+>/g, '').trim())}</span>`
+                  ).join('')}</p>`;
+                })()}
               </div>
               <div class="flex items-center space-x-1" onclick="event.stopPropagation()">
                 <button onclick="editEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-slate-200 p-1" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button>
@@ -989,7 +1079,8 @@
         document.getElementById('eventId').value = editingEvent.id;
         document.getElementById('eventTitle').value = editingEvent.title;
         // Migrate legacy HOTEL type into STAY in the form
-        document.getElementById('eventType').value = editingEvent.type === 'HOTEL' ? 'STAY' : editingEvent.type;
+        const primary = editingEvent.type === 'HOTEL' ? 'STAY' : editingEvent.type;
+        document.getElementById('eventType').value = primary;
         document.getElementById('eventDate').value = editingEvent.date;
         document.getElementById('eventEndDate').value = editingEvent.endDate || '';
         document.getElementById('eventTime').value = editingEvent.time;
@@ -997,12 +1088,15 @@
         document.getElementById('eventLocation').value = editingEvent.location || '';
         document.getElementById('eventAddress').value = editingEvent.address || '';
         document.getElementById('eventNotes').value = editingEvent.notes || '';
+        updateFormForType();
+        setExtraCategoryChecks(getEventCategories(editingEvent), primary);
       } else {
         document.getElementById('modalTitle').innerText = 'Add New Event';
         document.getElementById('eventForm').reset();
         document.getElementById('eventId').value = '';
+        updateFormForType();
+        setExtraCategoryChecks([], document.getElementById('eventType').value);
       }
-      updateFormForType();
     }
 
     function closeModal() {
@@ -1013,11 +1107,15 @@
       e.preventDefault();
       const events = getEvents();
       const id = document.getElementById('eventId').value || Date.now().toString();
+      const type = normalizeCategory(document.getElementById('eventType').value);
+      const extras = getSelectedExtraCategories(type);
+      const categories = [...new Set([type, ...extras])];
 
       const newEv = {
         id,
         title: document.getElementById('eventTitle').value,
-        type: document.getElementById('eventType').value,
+        type,
+        categories,
         date: document.getElementById('eventDate').value,
         endDate: document.getElementById('eventEndDate').value,
         time: document.getElementById('eventTime').value,
@@ -1061,7 +1159,10 @@
       if (!ev) return;
 
       currentDetailEventId = id;
-      document.getElementById('detailTypeBadge').innerHTML = typeLabels[ev.type] || escapeHtml(ev.type);
+      const cats = getEventCategories(ev);
+      document.getElementById('detailTypeBadge').innerHTML = cats
+        .map(cat => typeLabels[cat] || escapeHtml(cat))
+        .join('<span class="mx-1 text-slate-500">·</span>');
       document.getElementById('detailTitle').innerText = ev.title;
 
       if (isStayType(ev)) {

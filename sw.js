@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vacation-2026-v5';
+const CACHE_NAME = 'vacation-2026-v6';
 const ASSETS = [
   './',
   './index.html',
