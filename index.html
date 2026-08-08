@@ -752,8 +752,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="./firebase-config.js?v=14"></script>
-  <script src="./cloud.js?v=14"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="./firebase-config.js?v=15"></script>
+  <script src="./cloud.js?v=15"></script>
 
   <!-- App Script (live shared trip via Firebase) -->
   <script>
@@ -938,12 +939,8 @@
       }
       try {
         const seedEvents = readLegacyLocalEvents();
-        // Only migrate small attachments; large ticket PDFs exceed Firestore's 1MB field limit.
-        const seedAtts = readLegacyLocalAttachments().filter((a) => {
-          if (!a) return false;
-          if (a.kind === 'link') return true;
-          return !a.dataUrl || String(a.dataUrl).length <= 700000;
-        });
+        // Seed links + local files (files go to Firebase Storage now).
+        const seedAtts = readLegacyLocalAttachments();
         const result = await VacationCloud.createTrip(seedEvents, seedAtts);
         const code = result.inviteCode;
         const big = document.getElementById('authInviteCodeBig');
@@ -1766,7 +1763,7 @@
       }
     }
 
-    function uploadVoucher(eventId, event) {
+    async function uploadVoucher(eventId, event) {
       const input = event.target;
       const files = Array.from(input.files || []);
       if (!files.length) return;
@@ -1775,48 +1772,25 @@
         return;
       }
 
-      const pending = [];
-      let remaining = files.length;
-      let failed = 0;
+      // Upload File objects directly to Firebase Storage (no base64 / Firestore size limit).
+      const pending = files.map((file) => ({
+        id: newAttachmentId(),
+        eventId,
+        kind: 'file',
+        fileName: file.name,
+        fileType: file.type || guessMimeFromName(file.name),
+        size: file.size || 0,
+        file,
+        createdAt: Date.now()
+      }));
 
-      const finishIfDone = async () => {
-        if (remaining > 0) return;
-        if (pending.length) {
-          try {
-            await upsertAttachments(pending);
-          } catch (err) {
-            console.error(err);
-            alert(err.message || 'Could not save one or more files. They may be too large for shared sync.');
-          }
-        } else if (failed) {
-          alert('Could not read the selected files.');
-        }
-        input.value = '';
-      };
-
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onerror = () => {
-          failed += 1;
-          remaining -= 1;
-          finishIfDone();
-        };
-        reader.onload = function(e) {
-          pending.push({
-            id: newAttachmentId(),
-            eventId,
-            kind: 'file',
-            fileName: file.name,
-            fileType: file.type || guessMimeFromName(file.name),
-            size: file.size || 0,
-            dataUrl: e.target.result,
-            createdAt: Date.now()
-          });
-          remaining -= 1;
-          finishIfDone();
-        };
-        reader.readAsDataURL(file);
-      });
+      try {
+        await upsertAttachments(pending);
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Could not upload one or more files.');
+      }
+      input.value = '';
     }
 
     function guessMimeFromName(name = '') {
@@ -1885,6 +1859,52 @@
       closeLinkModal();
     }
 
+    function renderFilePreview(objectUrl, type, fileName, { revokeOnClose = true } = {}) {
+      revokePreviewObjectUrl();
+      const preview = document.getElementById('docPreviewContainer');
+      const openExternal = document.getElementById('docOpenExternal');
+      const downloadLink = document.getElementById('docDownloadLink');
+      document.getElementById('docModalTitle').innerText = fileName || 'Attachment';
+      preview.innerHTML = '';
+
+      if (revokeOnClose) preview.dataset.objectUrl = objectUrl;
+
+      openExternal.href = objectUrl;
+      openExternal.target = '_blank';
+      openExternal.rel = 'noopener noreferrer';
+      openExternal.classList.remove('hidden');
+      downloadLink.href = objectUrl;
+      downloadLink.download = fileName || 'file';
+      downloadLink.classList.remove('hidden');
+
+      if (type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = objectUrl;
+        img.alt = fileName;
+        img.className = 'max-w-full max-h-full rounded-lg object-contain';
+        preview.appendChild(img);
+      } else if (type === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+        const iframe = document.createElement('iframe');
+        iframe.src = objectUrl;
+        iframe.title = fileName;
+        iframe.className = 'w-full h-full min-h-[70vh] rounded-lg bg-white';
+        preview.appendChild(iframe);
+      } else {
+        const wrap = document.createElement('div');
+        wrap.className = 'text-center space-y-3';
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'inline-block text-brand-500 underline text-sm';
+        link.textContent = `Open ${fileName}`;
+        wrap.appendChild(link);
+        preview.appendChild(wrap);
+      }
+
+      document.getElementById('docModal').classList.remove('hidden');
+    }
+
     function viewAttachment(attachmentId) {
       const res = getAllAttachments().find(a => a.id === attachmentId);
       if (!res) return;
@@ -1892,72 +1912,23 @@
         openLinkAttachment(attachmentId);
         return;
       }
-      if (!res.dataUrl) {
-        alert('This attachment has no file data. Please attach it again.');
-        return;
-      }
 
-      revokePreviewObjectUrl();
-
-      const preview = document.getElementById('docPreviewContainer');
-      const openExternal = document.getElementById('docOpenExternal');
-      const downloadLink = document.getElementById('docDownloadLink');
-      document.getElementById('docModalTitle').innerText = res.fileName || 'Attachment';
-      preview.innerHTML = '';
+      const fileName = res.fileName || 'file';
+      const type = res.fileType || guessMimeFromName(fileName);
 
       try {
-        const blob = dataUrlToBlob(res.dataUrl);
-        const objectUrl = URL.createObjectURL(blob);
-        preview.dataset.objectUrl = objectUrl;
-
-        const type = res.fileType || blob.type || guessMimeFromName(res.fileName);
-        const fileName = res.fileName || 'file';
-
-        openExternal.href = objectUrl;
-        openExternal.classList.remove('hidden');
-        downloadLink.href = objectUrl;
-        downloadLink.download = fileName;
-        downloadLink.classList.remove('hidden');
-
-        if (type.startsWith('image/')) {
-          const img = document.createElement('img');
-          img.src = objectUrl;
-          img.alt = fileName;
-          img.className = 'max-w-full max-h-full rounded-lg object-contain';
-          preview.appendChild(img);
-        } else if (type === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
-          const iframe = document.createElement('iframe');
-          iframe.src = objectUrl;
-          iframe.title = fileName;
-          iframe.className = 'w-full h-full min-h-[70vh] rounded-lg bg-white';
-          preview.appendChild(iframe);
-        } else if (type.startsWith('text/')) {
-          blob.text().then((text) => {
-            const pre = document.createElement('pre');
-            pre.className = 'w-full max-w-3xl text-xs text-slate-200 whitespace-pre-wrap break-words bg-slate-900/80 p-4 rounded-lg';
-            pre.textContent = text;
-            preview.appendChild(pre);
-          }).catch(() => {
-            const link = document.createElement('a');
-            link.href = objectUrl;
-            link.download = fileName;
-            link.className = 'text-brand-500 underline text-sm';
-            link.textContent = `Download ${fileName}`;
-            preview.appendChild(link);
-          });
-        } else {
-          const wrap = document.createElement('div');
-          wrap.className = 'text-center space-y-3';
-          const link = document.createElement('a');
-          link.href = objectUrl;
-          link.download = fileName;
-          link.className = 'inline-block text-brand-500 underline text-sm';
-          link.textContent = `Download ${fileName}`;
-          wrap.appendChild(link);
-          preview.appendChild(wrap);
+        if (res.dataUrl) {
+          const blob = dataUrlToBlob(res.dataUrl);
+          const objectUrl = URL.createObjectURL(blob);
+          renderFilePreview(objectUrl, type || blob.type, fileName, { revokeOnClose: true });
+          return;
         }
-
-        document.getElementById('docModal').classList.remove('hidden');
+        if (res.url) {
+          // Firebase Storage download URL — shared live with partner
+          renderFilePreview(res.url, type, fileName, { revokeOnClose: false });
+          return;
+        }
+        alert('This attachment has no file data. Please attach it again.');
       } catch (err) {
         console.error(err);
         alert('Could not open this attachment. Please attach the file again.');

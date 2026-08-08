@@ -10,9 +10,11 @@
   let app = null;
   let auth = null;
   let db = null;
+  let storage = null;
   let unsubEvents = null;
   let unsubAtts = null;
   let authWired = false;
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
   const listeners = new Set();
   const state = {
@@ -75,11 +77,12 @@
       app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
       auth = firebase.auth();
       db = firebase.firestore();
+      storage = firebase.storage();
       try {
         db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
       } catch (_) {}
     }
-    return { auth, db };
+    return { auth, db, storage };
   }
 
   function randomCode(len) {
@@ -109,43 +112,37 @@
       url: data.url || "",
       label: data.label || "",
       dataUrl: data.dataUrl || "",
+      storagePath: data.storagePath || "",
       createdAt: data.createdAt || data.updatedAt || Date.now(),
       updatedAt: data.updatedAt || Date.now()
     };
   }
 
-  // Firestore field limit is ~1MB; keep headroom for other fields.
-  const MAX_DATA_URL_CHARS = 700000;
-
-  function attachmentPayload(att) {
-    const dataUrl = att.dataUrl || "";
-    if (dataUrl.length > MAX_DATA_URL_CHARS) {
-      const err = new Error("File is too large for shared sync. Use a smaller file or add a link instead.");
-      err.code = "attachment-too-large";
-      throw err;
+  function dataUrlToBlob(dataUrl) {
+    const parts = String(dataUrl || "").split(",");
+    if (parts.length < 2) throw new Error("Invalid file data");
+    const header = parts[0];
+    const data = parts.slice(1).join(",");
+    const mime = (header.match(/data:([^;]+)/) || [])[1] || "application/octet-stream";
+    const isBase64 = /;base64/i.test(header);
+    if (isBase64) {
+      const binary = atob(data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
     }
-    return {
-      eventId: att.eventId,
-      kind: att.kind || "file",
-      fileName: att.fileName || att.name || "file",
-      fileType: att.fileType || att.type || "application/octet-stream",
-      name: att.fileName || att.name || "file",
-      type: att.fileType || att.type || "application/octet-stream",
-      size: att.size || 0,
-      url: att.url || "",
-      label: att.label || "",
-      dataUrl,
-      createdAt: att.createdAt || Date.now(),
-      updatedAt: Date.now()
-    };
+    return new Blob([decodeURIComponent(data)], { type: mime });
+  }
+
+  function safeFileName(name) {
+    return String(name || "file").replace(/[^\w.\-()+ ]+/g, "_").slice(0, 120);
   }
 
   function canSeedAttachment(att) {
     if (!att) return false;
     if (att.kind === "link") return true;
-    const dataUrl = att.dataUrl || "";
-    if (!dataUrl) return true;
-    return dataUrl.length <= MAX_DATA_URL_CHARS;
+    // File seeds are uploaded via Storage during create; allow if we have bytes.
+    return !!(att.file || att.dataUrl || att.url);
   }
 
   function startTripListeners(tripId) {
@@ -241,16 +238,22 @@
         await batch.commit();
       }
 
+      // Temporarily point state at new trip so Storage uploads work during seed.
+      const previousTripId = state.tripId;
+      state.tripId = tripRef.id;
       const atts = seedAttachments || {};
       const attList = (Array.isArray(atts) ? atts : Object.values(atts)).filter(canSeedAttachment);
       for (const a of attList) {
         try {
-          const id = String(a.id || ("att_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
-          await tripRef.collection("attachments").doc(id).set(attachmentPayload(a));
+          await upsertAttachment({
+            ...a,
+            id: a.id || ("att_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7))
+          });
         } catch (_) {
           // Skip individual bad attachments
         }
       }
+      state.tripId = previousTripId;
     } catch (seedErr) {
       console.warn("Trip created, but seeding some local data failed:", seedErr);
     }
@@ -343,20 +346,87 @@
   }
 
   async function upsertAttachment(att) {
+    ensureFirebase();
     if (!state.tripId) throw new Error("Join a shared trip first.");
     const id = String(att.id || ("att_" + Date.now()));
-    const payload = attachmentPayload(att);
-    const approx = JSON.stringify(payload).length;
-    if (approx > 900000) {
-      throw new Error("File is too large for shared sync. Use a smaller file or a link instead.");
+    const kind = att.kind || (att.url && !att.file && !att.dataUrl ? "link" : "file");
+    const fileName = att.fileName || att.name || (kind === "link" ? "Link" : "file");
+    const fileType = att.fileType || att.type || "application/octet-stream";
+    const createdAt = att.createdAt || Date.now();
+
+    if (kind === "link") {
+      await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
+        eventId: att.eventId,
+        kind: "link",
+        fileName,
+        fileType: "text/uri-list",
+        name: fileName,
+        type: "text/uri-list",
+        size: 0,
+        url: att.url || "",
+        label: att.label || "",
+        dataUrl: "",
+        storagePath: "",
+        createdAt,
+        updatedAt: Date.now()
+      }, { merge: true });
+      return id;
     }
-    await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set(payload, { merge: true });
+
+    let downloadUrl = att.url || "";
+    let storagePath = att.storagePath || "";
+    let size = att.size || 0;
+    const blob = att.file || (att.dataUrl ? dataUrlToBlob(att.dataUrl) : null);
+
+    if (blob) {
+      size = blob.size || size;
+      if (size > MAX_FILE_BYTES) {
+        throw new Error("File is larger than 25MB. Use a smaller file or add a link instead.");
+      }
+      storagePath = `trips/${state.tripId}/attachments/${id}/${safeFileName(fileName)}`;
+      const ref = storage.ref(storagePath);
+      await ref.put(blob, { contentType: fileType || blob.type || "application/octet-stream" });
+      downloadUrl = await ref.getDownloadURL();
+    }
+
+    if (!downloadUrl && !att.dataUrl) {
+      throw new Error("No file data to upload.");
+    }
+
+    // Store only the Storage URL in Firestore (not the file bytes).
+    await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
+      eventId: att.eventId,
+      kind: "file",
+      fileName,
+      fileType,
+      name: fileName,
+      type: fileType,
+      size,
+      url: downloadUrl,
+      label: att.label || "",
+      dataUrl: "",
+      storagePath,
+      createdAt,
+      updatedAt: Date.now()
+    }, { merge: true });
     return id;
+  }
+
+  async function deleteStoragePath(storagePath) {
+    if (!storagePath || !storage) return;
+    try {
+      await storage.ref(storagePath).delete();
+    } catch (_) {}
   }
 
   async function deleteAttachmentDoc(attachmentId) {
     if (!state.tripId) throw new Error("Join a shared trip first.");
-    await db.collection("trips").doc(state.tripId).collection("attachments").doc(String(attachmentId)).delete();
+    const ref = db.collection("trips").doc(state.tripId).collection("attachments").doc(String(attachmentId));
+    const snap = await ref.get();
+    if (snap.exists) {
+      await deleteStoragePath(snap.data().storagePath || "");
+    }
+    await ref.delete();
   }
 
   async function deleteAttachmentsForEvent(eventId) {
@@ -364,8 +434,13 @@
     const snap = await db.collection("trips").doc(state.tripId).collection("attachments")
       .where("eventId", "==", String(eventId)).get();
     const batch = db.batch();
-    snap.forEach((doc) => batch.delete(doc.ref));
+    const paths = [];
+    snap.forEach((doc) => {
+      paths.push(doc.data().storagePath || "");
+      batch.delete(doc.ref);
+    });
     if (!snap.empty) await batch.commit();
+    for (const path of paths) await deleteStoragePath(path);
   }
 
   function configure(cfg) {
@@ -377,6 +452,7 @@
     app = null;
     auth = null;
     db = null;
+    storage = null;
     authWired = false;
     ensureFirebase();
     wireAuth();
