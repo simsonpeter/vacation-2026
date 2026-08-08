@@ -232,7 +232,7 @@
           const { id: _drop, ...rest } = ev;
           // Strip any accidental huge fields from legacy local event objects
           const clean = { ...rest };
-          if (clean.dataUrl && String(clean.dataUrl).length > MAX_DATA_URL_CHARS) delete clean.dataUrl;
+          if (clean.dataUrl) delete clean.dataUrl;
           batch.set(tripRef.collection("events").doc(id), { ...clean, updatedAt: Date.now() });
         });
         await batch.commit();
