@@ -194,6 +194,26 @@
       outline: 2px solid var(--brand-500);
       outline-offset: 2px;
     }
+
+    .app-bottom-nav {
+      background: var(--app-header) !important;
+      border-color: var(--app-border) !important;
+      padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
+    }
+    .nav-tab {
+      color: var(--app-muted);
+    }
+    .nav-tab.nav-active {
+      color: var(--brand-500) !important;
+    }
+    .nav-tab.nav-active .nav-tab-icon {
+      transform: translateY(-1px) scale(1.06);
+    }
+    .nav-tab-icon {
+      transition: transform 0.15s ease;
+      font-size: 1.15rem;
+      line-height: 1;
+    }
   </style>
 </head>
 <body class="h-full flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
@@ -227,24 +247,17 @@
   </header>
 
   <!-- Filter & Actions Bar -->
-  <main class="flex-1 max-w-3xl w-full mx-auto p-4 space-y-4 pb-24">
+  <main class="flex-1 max-w-3xl w-full mx-auto p-4 space-y-4 pb-28">
     <div class="flex items-center justify-between gap-2">
       <div class="flex space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700/50 overflow-x-auto">
-        <button onclick="filterCategory('UPCOMING')" class="filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition bg-brand-600 text-white whitespace-nowrap" id="filter-UPCOMING">Upcoming</button>
-        <button onclick="filterCategory('TODAY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-TODAY">Today</button>
-        <button onclick="filterCategory('ALL')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-ALL">All</button>
+        <button onclick="filterCategory('UPCOMING')" class="time-filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition bg-brand-600 text-white whitespace-nowrap" id="filter-UPCOMING">Upcoming</button>
+        <button onclick="filterCategory('TODAY')" class="time-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-TODAY">Today</button>
+        <button onclick="filterCategory('ALL')" class="time-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-ALL">All</button>
       </div>
 
       <button onclick="openModal()" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-semibold text-white shadow-lg shadow-brand-500/20 whitespace-nowrap shrink-0">
-        + Add Event
+        + Add
       </button>
-    </div>
-
-    <div class="flex space-x-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/40 overflow-x-auto w-fit max-w-full">
-      <button onclick="filterCategory('FLIGHT')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-FLIGHT">✈️ Flights</button>
-      <button onclick="filterCategory('TRAIN')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-TRAIN">🚆 Trains</button>
-      <button onclick="filterCategory('STAY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-STAY">🏨 Stays</button>
-      <button onclick="filterCategory('ACTIVITY')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition whitespace-nowrap" id="filter-ACTIVITY">🏛️ Sights</button>
     </div>
 
     <!-- Timeline Container -->
@@ -252,6 +265,28 @@
       <!-- Injected by JavaScript -->
     </div>
   </main>
+
+  <!-- App-style bottom category nav -->
+  <nav class="app-bottom-nav fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-md">
+    <div class="max-w-3xl mx-auto grid grid-cols-4 px-1 pt-1">
+      <button onclick="filterCategory('FLIGHT')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-FLIGHT">
+        <span class="nav-tab-icon" aria-hidden="true">✈️</span>
+        <span>Flights</span>
+      </button>
+      <button onclick="filterCategory('TRAIN')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-TRAIN">
+        <span class="nav-tab-icon" aria-hidden="true">🚆</span>
+        <span>Trains</span>
+      </button>
+      <button onclick="filterCategory('STAY')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-STAY">
+        <span class="nav-tab-icon" aria-hidden="true">🏨</span>
+        <span>Stays</span>
+      </button>
+      <button onclick="filterCategory('ACTIVITY')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-ACTIVITY">
+        <span class="nav-tab-icon" aria-hidden="true">🏛️</span>
+        <span>Sights</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- Settings: Themes + Cloud Sync -->
   <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
@@ -1038,14 +1073,26 @@
 
     function filterCategory(cat) {
       currentFilter = cat;
-      document.querySelectorAll('.filter-btn').forEach(b => {
-        b.classList.remove('bg-brand-600', 'text-white');
+
+      // Top time chips
+      document.querySelectorAll('.time-filter-btn').forEach(b => {
+        b.classList.remove('bg-brand-600', 'text-white', 'active');
         b.classList.add('text-slate-400');
       });
+
+      // Bottom app tabs
+      document.querySelectorAll('.nav-tab').forEach(b => {
+        b.classList.remove('nav-active');
+      });
+
       const activeBtn = document.getElementById(`filter-${cat}`);
       if (activeBtn) {
-        activeBtn.classList.add('bg-brand-600', 'text-white');
-        activeBtn.classList.remove('text-slate-400');
+        if (activeBtn.classList.contains('nav-tab')) {
+          activeBtn.classList.add('nav-active');
+        } else {
+          activeBtn.classList.add('bg-brand-600', 'text-white', 'active');
+          activeBtn.classList.remove('text-slate-400');
+        }
       }
       renderTimeline();
     }
