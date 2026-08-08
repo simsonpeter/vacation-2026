@@ -2,8 +2,18 @@
 <html lang="en" class="dark h-full bg-slate-900 text-slate-100">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vacation Dashboard 2026</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Summer Vacation 2026</title>
+  <meta name="description" content="Rome & Pisa trip planner — itinerary, stays, tickets, and attachments.">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vacation 2026">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -23,15 +33,18 @@
 
   <!-- Header -->
   <header class="sticky top-0 z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 py-3">
-    <div class="max-w-3xl mx-auto flex items-center justify-between">
-      <div class="flex items-center space-x-2">
-        <span class="text-2xl">🇮🇹</span>
-        <div>
-          <h1 class="font-bold text-lg leading-tight">Summer Vacation 2026</h1>
-          <p class="text-xs text-slate-400">Rome & Pisa | Aug 10 - Aug 15</p>
+    <div class="max-w-3xl mx-auto flex items-center justify-between gap-3">
+      <div class="flex items-center space-x-3 min-w-0">
+        <img src="icons/logo.svg" alt="Vacation 2026 logo" class="w-10 h-10 rounded-xl shadow-lg shadow-brand-500/20 ring-1 ring-white/10 shrink-0">
+        <div class="min-w-0">
+          <h1 class="font-bold text-lg leading-tight truncate">Summer Vacation 2026</h1>
+          <p class="text-xs text-slate-400 truncate">Rome & Pisa | Aug 10 - Aug 15</p>
         </div>
       </div>
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center space-x-2 shrink-0">
+        <button id="installAppBtn" onclick="installPwa()" title="Install app" class="hidden p-2 rounded-lg bg-brand-600 hover:bg-brand-500 border border-brand-500 text-xs text-white font-medium">
+          Install
+        </button>
         <button onclick="exportData()" title="Backup / Export Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300">
           📥 Export
         </button>
@@ -1155,6 +1168,47 @@
         }
       };
       reader.readAsText(file);
+    }
+
+    // Progressive Web App — install + offline cache
+    let deferredInstallPrompt = null;
+
+    function isStandaloneDisplay() {
+      return window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const btn = document.getElementById('installAppBtn');
+      if (btn && !isStandaloneDisplay()) btn.classList.remove('hidden');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      const btn = document.getElementById('installAppBtn');
+      if (btn) btn.classList.add('hidden');
+    });
+
+    async function installPwa() {
+      if (!deferredInstallPrompt) {
+        alert('To install: use your browser menu → Add to Home Screen / Install app.');
+        return;
+      }
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      const btn = document.getElementById('installAppBtn');
+      if (btn) btn.classList.add('hidden');
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
     }
   </script>
 </body>

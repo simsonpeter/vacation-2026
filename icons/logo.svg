@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Vacation 2026">
+  <defs>
+    <linearGradient id="sky" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1d4ed8"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="20" y1="10" x2="44" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#93c5fd" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#sky)"/>
+  <path d="M32 12c-7.2 0-13 5.7-13 12.7 0 9.4 13 22.3 13 22.3s13-12.9 13-22.3C45 17.7 39.2 12 32 12z" fill="url(#glow)"/>
+  <circle cx="32" cy="24.5" r="5.2" fill="#1e3a8a"/>
+  <path d="M14 46.5c3.2-1.8 6.8-2.8 10.8-2.8 4.5 0 8.5 1.2 12 3.4 3.2-1.8 7-2.8 11.2-2.8 2.2 0 4.3.3 6.2.8" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M47 18.5l5.5-1.2-2.8 4.8 1.8 1.1-7.2 1.6 1.1-7.3 1.6 1z" fill="#f8fafc"/>
+</svg>
