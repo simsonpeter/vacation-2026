@@ -801,7 +801,23 @@
       HOTEL: '<i class="fa-solid fa-hotel"></i>'
     };
 
-    const ALL_CATEGORIES = ['FLIGHT', 'TRAIN', 'BUS', 'ACTIVITY', 'STAY'];
+    const typeNames = {
+      FLIGHT: 'Flight',
+      TRAIN: 'Train',
+      BUS: 'Bus',
+      ACTIVITY: 'Sights',
+      STAY: 'Stay',
+      HOTEL: 'Stay'
+    };
+
+    const typeLabels = {
+      FLIGHT: '<i class="fa-solid fa-plane mr-1"></i>Flight',
+      TRAIN: '<i class="fa-solid fa-train mr-1"></i>Train',
+      BUS: '<i class="fa-solid fa-bus mr-1"></i>Bus',
+      ACTIVITY: '<i class="fa-solid fa-landmark mr-1"></i>Activity / Sight',
+      STAY: '<i class="fa-solid fa-hotel mr-1"></i>Stay (Hotel / Airbnb)',
+      HOTEL: '<i class="fa-solid fa-hotel mr-1"></i>Stay (Hotel / Airbnb)'
+    };
 
     function normalizeCategory(cat) {
       if (cat === 'HOTEL') return 'STAY';
@@ -1039,7 +1055,7 @@
                   const cats = getEventCategories(ev).filter(c => c !== normalizeCategory(ev.type));
                   if (!cats.length) return '';
                   return `<p class="mt-1 flex flex-wrap gap-1">${cats.map(c =>
-                    `<span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-900/50 border border-slate-700/60 text-slate-400">${typeIcons[c] || ''} ${escapeHtml((typeLabels[c] || c).replace(/<[^>]+>/g, '').trim())}</span>`
+                    `<span class="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-900/50 border border-slate-700/60 text-slate-400">${typeIcons[c] || ''} ${escapeHtml(typeNames[c] || c)}</span>`
                   ).join('')}</p>`;
                 })()}
               </div>
@@ -1144,15 +1160,6 @@
       deleteVoucherFromDB(id);
       if (currentDetailEventId === id) closeEventDetail();
     }
-
-    const typeLabels = {
-      FLIGHT: '<i class="fa-solid fa-plane mr-1"></i>Flight',
-      TRAIN: '<i class="fa-solid fa-train mr-1"></i>Train',
-      BUS: '<i class="fa-solid fa-bus mr-1"></i>Bus',
-      ACTIVITY: '<i class="fa-solid fa-landmark mr-1"></i>Activity / Sight',
-      STAY: '<i class="fa-solid fa-hotel mr-1"></i>Stay (Hotel / Airbnb)',
-      HOTEL: '<i class="fa-solid fa-hotel mr-1"></i>Stay (Hotel / Airbnb)'
-    };
 
     function openEventDetail(id) {
       const ev = getEvents().find(x => x.id === id);
