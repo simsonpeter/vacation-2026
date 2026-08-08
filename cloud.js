@@ -264,14 +264,29 @@
     if (!state.user) throw new Error("Sign in first.");
     const code = String(inviteCode || "").trim().toUpperCase();
     if (!code) throw new Error("Enter an invite code.");
-    const codeSnap = await db.collection("inviteCodes").doc(code).get();
-    if (!codeSnap.exists) throw new Error("Invite code not found.");
+    let codeSnap;
+    try {
+      codeSnap = await db.collection("inviteCodes").doc(code).get();
+    } catch (err) {
+      if (err && err.code === "permission-denied") {
+        throw new Error("Permission denied reading invite code. Publish the latest Firestore rules, then try again.");
+      }
+      throw err;
+    }
+    if (!codeSnap.exists) throw new Error("Invite code not found. Check the code from your partner’s Account & invite menu.");
     const tripId = codeSnap.data().tripId;
     const tripRef = db.collection("trips").doc(tripId);
-    await tripRef.set({
-      members: firebase.firestore.FieldValue.arrayUnion(state.user.uid),
-      memberEmails: firebase.firestore.FieldValue.arrayUnion(state.user.email || "")
-    }, { merge: true });
+    try {
+      await tripRef.update({
+        members: firebase.firestore.FieldValue.arrayUnion(state.user.uid),
+        memberEmails: firebase.firestore.FieldValue.arrayUnion(state.user.email || "")
+      });
+    } catch (err) {
+      if (err && err.code === "permission-denied") {
+        throw new Error("Permission denied joining trip. In Firebase → Firestore → Rules, publish the latest firestore.rules, then try Join again.");
+      }
+      throw err;
+    }
     await db.collection("users").doc(state.user.uid).set({
       email: state.user.email || "",
       tripId,
