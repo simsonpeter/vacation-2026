@@ -14,7 +14,6 @@
   let unsubEvents = null;
   let unsubAtts = null;
   let authWired = false;
-  const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
   const listeners = new Set();
   const state = {
@@ -122,26 +121,6 @@
       createdAt: data.createdAt || data.updatedAt || Date.now(),
       updatedAt: data.updatedAt || Date.now()
     };
-  }
-
-  function dataUrlToBlob(dataUrl) {
-    const parts = String(dataUrl || "").split(",");
-    if (parts.length < 2) throw new Error("Invalid file data");
-    const header = parts[0];
-    const data = parts.slice(1).join(",");
-    const mime = (header.match(/data:([^;]+)/) || [])[1] || "application/octet-stream";
-    const isBase64 = /;base64/i.test(header);
-    if (isBase64) {
-      const binary = atob(data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return new Blob([bytes], { type: mime });
-    }
-    return new Blob([decodeURIComponent(data)], { type: mime });
-  }
-
-  function safeFileName(name) {
-    return String(name || "file").replace(/[^\w.\-()+ ]+/g, "_").slice(0, 120);
   }
 
   function canSeedAttachment(att) {
