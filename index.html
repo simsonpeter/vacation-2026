@@ -14,6 +14,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -211,7 +212,7 @@
     }
     .nav-tab-icon {
       transition: transform 0.15s ease;
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       line-height: 1;
     }
   </style>
@@ -230,16 +231,16 @@
       </div>
       <div class="flex items-center space-x-2 shrink-0">
         <button id="installAppBtn" onclick="installPwa()" title="Install app" class="hidden p-2 rounded-lg bg-brand-600 hover:bg-brand-500 border border-brand-500 text-xs text-white font-medium">
-          Install
+          <i class="fa-solid fa-download mr-1"></i>Install
         </button>
         <button onclick="openSettingsModal()" title="Themes & Sync" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300">
-          ⚙️
+          <i class="fa-solid fa-gear"></i>
         </button>
         <button onclick="exportData()" title="Backup / Export Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300">
-          📥
+          <i class="fa-solid fa-file-export"></i>
         </button>
         <label title="Restore / Import Data" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-slate-300 cursor-pointer">
-          📤
+          <i class="fa-solid fa-file-import"></i>
           <input type="file" id="importInput" accept=".json" class="hidden" onchange="importData(event)">
         </label>
       </div>
@@ -256,7 +257,7 @@
       </div>
 
       <button onclick="openModal()" class="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-semibold text-white shadow-lg shadow-brand-500/20 whitespace-nowrap shrink-0">
-        + Add
+        <i class="fa-solid fa-plus mr-1"></i>Add
       </button>
     </div>
 
@@ -270,19 +271,19 @@
   <nav class="app-bottom-nav fixed bottom-0 inset-x-0 z-40 border-t backdrop-blur-md">
     <div class="max-w-3xl mx-auto grid grid-cols-4 px-1 pt-1">
       <button onclick="filterCategory('FLIGHT')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-FLIGHT">
-        <span class="nav-tab-icon" aria-hidden="true">✈️</span>
+        <i class="fa-solid fa-plane nav-tab-icon" aria-hidden="true"></i>
         <span>Flights</span>
       </button>
       <button onclick="filterCategory('TRAIN')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-TRAIN">
-        <span class="nav-tab-icon" aria-hidden="true">🚆</span>
+        <i class="fa-solid fa-train nav-tab-icon" aria-hidden="true"></i>
         <span>Trains</span>
       </button>
       <button onclick="filterCategory('STAY')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-STAY">
-        <span class="nav-tab-icon" aria-hidden="true">🏨</span>
+        <i class="fa-solid fa-hotel nav-tab-icon" aria-hidden="true"></i>
         <span>Stays</span>
       </button>
       <button onclick="filterCategory('ACTIVITY')" class="nav-tab flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[10px] font-medium transition" id="filter-ACTIVITY">
-        <span class="nav-tab-icon" aria-hidden="true">🏛️</span>
+        <i class="fa-solid fa-landmark nav-tab-icon" aria-hidden="true"></i>
         <span>Sights</span>
       </button>
     </div>
@@ -293,7 +294,7 @@
     <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-5 space-y-5">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
         <h3 class="font-bold text-lg">Themes & Sync</h3>
-        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <section class="space-y-3">
@@ -324,8 +325,8 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="pushBackupToGist()" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Upload / Sync up</button>
-          <button type="button" onclick="pullBackupFromGist()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200">Download / Sync down</button>
+          <button type="button" onclick="pushBackupToGist()" class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Upload / Sync up</button>
+          <button type="button" onclick="pullBackupFromGist()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200"><i class="fa-solid fa-cloud-arrow-down mr-1"></i>Download / Sync down</button>
         </div>
         <p id="syncStatus" class="text-xs text-slate-400"></p>
         <p id="syncGistLinkWrap" class="text-xs text-slate-400 hidden">
@@ -340,7 +341,7 @@
         </div>
         <div class="flex gap-2">
           <input type="url" id="syncUrl" placeholder="https://..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
-          <button type="button" onclick="pullBackupFromUrl()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 whitespace-nowrap">Pull</button>
+          <button type="button" onclick="pullBackupFromUrl()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 whitespace-nowrap"><i class="fa-solid fa-link mr-1"></i>Pull</button>
         </div>
       </section>
 
@@ -355,7 +356,7 @@
     <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
         <h3 class="font-bold text-lg" id="modalTitle">Add New Event</h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="eventForm" onsubmit="saveEvent(event)" class="space-y-3">
         <input type="hidden" id="eventId">
@@ -367,11 +368,11 @@
           <div>
             <label class="block text-xs font-medium text-slate-400 mb-1">Type</label>
             <select id="eventType" onchange="updateFormForType()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
-              <option value="FLIGHT">✈️ Flight</option>
-              <option value="TRAIN">🚆 Train</option>
-              <option value="BUS">🚌 Bus</option>
-              <option value="ACTIVITY">🏛️ Activity/Sight</option>
-              <option value="STAY">🏨 Stay (Hotel / Airbnb)</option>
+              <option value="FLIGHT">Flight</option>
+              <option value="TRAIN">Train</option>
+              <option value="BUS">Bus</option>
+              <option value="ACTIVITY">Activity / Sight</option>
+              <option value="STAY">Stay (Hotel / Airbnb)</option>
             </select>
           </div>
           <div>
@@ -412,7 +413,7 @@
         </div>
         <div class="flex justify-end space-x-2 pt-2">
           <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Save Event</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white"><i class="fa-solid fa-check mr-1"></i>Save Event</button>
         </div>
       </form>
     </div>
@@ -426,7 +427,7 @@
           <span id="detailTypeBadge" class="inline-block text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-0.5 rounded bg-brand-500/10 mb-2"></span>
           <h3 class="font-bold text-lg leading-snug" id="detailTitle"></h3>
         </div>
-        <button onclick="closeEventDetail()" class="text-slate-400 hover:text-slate-200 text-xl font-bold shrink-0">&times;</button>
+        <button onclick="closeEventDetail()" class="text-slate-400 hover:text-slate-200 text-lg shrink-0" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="space-y-3 text-sm">
@@ -449,7 +450,7 @@
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
           <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1">Address</p>
           <p id="detailAddress" class="text-slate-100 whitespace-pre-wrap"></p>
-          <a id="detailAddressMap" href="#" target="_blank" rel="noopener noreferrer" class="hidden inline-block mt-2 text-xs text-brand-500 hover:underline">Open in Maps</a>
+          <a id="detailAddressMap" href="#" target="_blank" rel="noopener noreferrer" class="hidden inline-block mt-2 text-xs text-brand-500 hover:underline"><i class="fa-solid fa-map-location-dot mr-1"></i>Open in Maps</a>
         </div>
 
         <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
@@ -461,9 +462,9 @@
           <div class="flex items-center justify-between gap-2 mb-2">
             <p class="text-[10px] uppercase tracking-wider text-slate-500 font-medium">Attachments</p>
             <div class="flex items-center gap-1.5">
-              <button type="button" onclick="openLinkModal(currentDetailEventId)" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600">🔗 Link</button>
+              <button type="button" onclick="openLinkModal(currentDetailEventId)" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600"><i class="fa-solid fa-link mr-1"></i>Link</button>
               <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
-                📎 File
+                <i class="fa-solid fa-paperclip mr-1"></i>File
                 <input type="file" id="detailVoucherInput" class="hidden" accept="image/*,application/pdf" multiple onchange="uploadVoucherFromDetail(event)">
               </label>
             </div>
@@ -473,8 +474,8 @@
       </div>
 
       <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-        <button type="button" onclick="deleteEventFromDetail()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-red-900/40 text-xs font-medium text-red-400">Delete</button>
-        <button type="button" onclick="editEventFromDetail()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Edit Event</button>
+        <button type="button" onclick="deleteEventFromDetail()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-red-900/40 text-xs font-medium text-red-400"><i class="fa-solid fa-trash mr-1"></i>Delete</button>
+        <button type="button" onclick="editEventFromDetail()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white"><i class="fa-solid fa-pen mr-1"></i>Edit Event</button>
       </div>
     </div>
   </div>
@@ -484,7 +485,7 @@
     <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
         <h3 class="font-bold text-lg">Add Link</h3>
-        <button onclick="closeLinkModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        <button onclick="closeLinkModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="linkForm" onsubmit="saveLinkAttachment(event)" class="space-y-3">
         <input type="hidden" id="linkEventId">
@@ -498,7 +499,7 @@
         </div>
         <div class="flex justify-end space-x-2 pt-2">
           <button type="button" onclick="closeLinkModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Cancel</button>
-          <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white">Save Link</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-xs font-medium text-white"><i class="fa-solid fa-check mr-1"></i>Save Link</button>
         </div>
       </form>
     </div>
@@ -509,9 +510,9 @@
     <div class="flex items-center justify-between gap-3 p-4 bg-slate-900 border-b border-slate-800">
       <h3 class="font-bold text-sm truncate" id="docModalTitle">Attachment Preview</h3>
       <div class="flex items-center gap-2 shrink-0">
-        <a id="docOpenExternal" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-xs text-brand-500 hover:underline">Open</a>
-        <a id="docDownloadLink" href="#" download class="hidden text-xs text-slate-300 hover:text-white">Download</a>
-        <button onclick="closeDocModal()" class="text-slate-400 hover:text-white font-bold text-lg leading-none">&times;</button>
+        <a id="docOpenExternal" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-xs text-brand-500 hover:underline"><i class="fa-solid fa-up-right-from-square mr-1"></i>Open</a>
+        <a id="docDownloadLink" href="#" download class="hidden text-xs text-slate-300 hover:text-white"><i class="fa-solid fa-download mr-1"></i>Download</a>
+        <button onclick="closeDocModal()" class="text-slate-400 hover:text-white text-lg leading-none" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
     <div class="flex-1 p-2 flex items-center justify-center overflow-auto" id="docPreviewContainer">
@@ -523,11 +524,11 @@
   <script>
     // Initial pre-loaded itinerary data
     const initialEvents = [
-      { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) ✈️ Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
+      { id: '1', title: 'Brussels to Rome Fiumicino Flight', type: 'FLIGHT', date: '2026-08-10', time: '08:50', location: 'Brussels Airport (BRU) → Fiumicino (FCO)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Check-in online 24h before. Take Leonardo Express train upon arrival.' },
       { id: 'stay-rome', title: 'Rome Airbnb Stay', type: 'STAY', date: '2026-08-10', time: '15:00', endDate: '2026-08-15', endTime: '11:00', location: 'Airbnb — Centro Storico', address: 'Via dei Serpenti, 00184 Roma RM, Italy', notes: 'Check-in after 15:00. Self check-in with lockbox code in confirmation email.' },
       { id: '2', title: 'Colosseum, Palatine Hill & Roman Forum', type: 'ACTIVITY', date: '2026-08-11', time: '10:30', location: 'Piazza del Colosseo, Roma', address: 'Piazza del Colosseo, 1, 00184 Roma RM, Italy', notes: 'Arrive 25 mins early for security checks.' },
       { id: '3', title: 'Day Trip to Pisa', type: 'TRAIN', date: '2026-08-13', time: '06:42', endTime: '20:38', location: 'Roma Termini ↔ Pisa Centrale', address: 'Piazza dei Miracoli, 56126 Pisa PI, Italy', notes: 'Outbound train at 06:42. Return train leaves Pisa at 20:38.' },
-      { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) ✈️ Brussels (BRU)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
+      { id: '4', title: 'Rome Fiumicino to Brussels Flight', type: 'FLIGHT', date: '2026-08-15', time: '18:10', location: 'Fiumicino (FCO) → Brussels (BRU)', address: 'Via dell\'Aeroporto di Fiumicino, 00054 Fiumicino RM, Italy', notes: 'Ferragosto holiday! Expect crowds; arrive at FCO airport by 15:30.' }
     ];
 
     let currentFilter = 'UPCOMING';
@@ -720,12 +721,12 @@
     }
 
     const typeIcons = {
-      FLIGHT: '✈️',
-      TRAIN: '🚆',
-      BUS: '🚌',
-      ACTIVITY: '🏛️',
-      STAY: '🏨',
-      HOTEL: '🏨'
+      FLIGHT: '<i class="fa-solid fa-plane"></i>',
+      TRAIN: '<i class="fa-solid fa-train"></i>',
+      BUS: '<i class="fa-solid fa-bus"></i>',
+      ACTIVITY: '<i class="fa-solid fa-landmark"></i>',
+      STAY: '<i class="fa-solid fa-hotel"></i>',
+      HOTEL: '<i class="fa-solid fa-hotel"></i>'
     };
 
     function isStayType(ev) {
@@ -888,8 +889,8 @@
 
         item.innerHTML = `
           <!-- Category Dot -->
-          <div class="absolute left-1.5 top-1.5 w-5 h-5 rounded-full bg-slate-800 border-2 border-brand-500 flex items-center justify-center text-[10px]">
-            ${typeIcons[ev.type] || '📌'}
+          <div class="absolute left-1.5 top-1.5 w-5 h-5 rounded-full bg-slate-800 border-2 border-brand-500 flex items-center justify-center text-[10px] text-brand-500">
+            ${typeIcons[ev.type] || '<i class="fa-solid fa-location-dot"></i>'}
           </div>
 
           <!-- Card Content -->
@@ -904,22 +905,22 @@
                 <h3 class="font-semibold text-slate-100 text-base">${escapeHtml(ev.title)}</h3>
               </div>
               <div class="flex items-center space-x-1" onclick="event.stopPropagation()">
-                <button onclick="editEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-slate-200 p-1">✏️</button>
-                <button onclick="deleteEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-red-400 p-1">🗑️</button>
+                <button onclick="editEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-slate-200 p-1" title="Edit" aria-label="Edit"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deleteEvent('${ev.id}')" class="text-xs text-slate-400 hover:text-red-400 p-1" title="Delete" aria-label="Delete"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
 
-            ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1">📍 <span>${escapeHtml(ev.location)}</span></p>` : ''}
-            ${ev.address ? `<p class="text-xs ${isStayType(ev) ? 'text-slate-200' : 'text-slate-400'} flex items-start gap-1">🏠 <span class="line-clamp-2">${escapeHtml(ev.address)}</span></p>` : ''}
+            ${ev.location ? `<p class="text-xs text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-route shrink-0"></i><span>${escapeHtml(ev.location)}</span></p>` : ''}
+            ${ev.address ? `<p class="text-xs ${isStayType(ev) ? 'text-slate-200' : 'text-slate-400'} flex items-start gap-1.5"><i class="fa-solid fa-location-dot shrink-0 mt-0.5"></i><span class="line-clamp-2">${escapeHtml(ev.address)}</span></p>` : ''}
             ${ev.notes ? `<p class="text-xs text-slate-400 italic bg-slate-900/40 p-2 rounded-lg line-clamp-2">${escapeHtml(ev.notes)}</p>` : ''}
 
             <!-- Attachments Section -->
             <div class="pt-2 border-t border-slate-700/50 space-y-2" id="voucher-section-${ev.id}" onclick="event.stopPropagation()">
               <div id="voucher-status-${ev.id}" class="text-xs text-slate-400 space-y-1">Loading attachments...</div>
               <div class="flex items-center gap-1.5 justify-end">
-                <button type="button" onclick="openLinkModal('${ev.id}')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600">🔗 Link</button>
+                <button type="button" onclick="openLinkModal('${ev.id}')" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 border border-slate-600"><i class="fa-solid fa-link mr-1"></i>Link</button>
                 <label class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg cursor-pointer text-slate-200 border border-slate-600">
-                  📎 File
+                  <i class="fa-solid fa-paperclip mr-1"></i>File
                   <input type="file" class="hidden" accept="image/*,application/pdf" multiple onchange="uploadVoucher('${ev.id}', event)">
                 </label>
               </div>
@@ -998,12 +999,12 @@
     }
 
     const typeLabels = {
-      FLIGHT: '✈️ Flight',
-      TRAIN: '🚆 Train',
-      BUS: '🚌 Bus',
-      ACTIVITY: '🏛️ Activity/Sight',
-      STAY: '🏨 Stay (Hotel / Airbnb)',
-      HOTEL: '🏨 Stay (Hotel / Airbnb)'
+      FLIGHT: '<i class="fa-solid fa-plane mr-1"></i>Flight',
+      TRAIN: '<i class="fa-solid fa-train mr-1"></i>Train',
+      BUS: '<i class="fa-solid fa-bus mr-1"></i>Bus',
+      ACTIVITY: '<i class="fa-solid fa-landmark mr-1"></i>Activity / Sight',
+      STAY: '<i class="fa-solid fa-hotel mr-1"></i>Stay (Hotel / Airbnb)',
+      HOTEL: '<i class="fa-solid fa-hotel mr-1"></i>Stay (Hotel / Airbnb)'
     };
 
     function openEventDetail(id) {
@@ -1011,7 +1012,7 @@
       if (!ev) return;
 
       currentDetailEventId = id;
-      document.getElementById('detailTypeBadge').innerText = typeLabels[ev.type] || ev.type;
+      document.getElementById('detailTypeBadge').innerHTML = typeLabels[ev.type] || escapeHtml(ev.type);
       document.getElementById('detailTitle').innerText = ev.title;
 
       if (isStayType(ev)) {
@@ -1120,19 +1121,21 @@
 
       return attachments.map(att => {
         const label = escapeHtml(attachmentLabel(att));
-        const icon = att.kind === 'link' ? '🔗' : '📄';
+        const icon = att.kind === 'link'
+          ? '<i class="fa-solid fa-link"></i>'
+          : '<i class="fa-solid fa-file"></i>';
         // Use single-quoted HTML attrs so JSON string args with " don't break onclick
         const idArg = jsStr(att.id);
         const openAction = att.kind === 'link'
           ? `openLinkAttachment(${idArg})`
           : `viewAttachment(${idArg})`;
         const deleteBtn = showDelete
-          ? `<button type="button" onclick='deleteAttachment(${idArg})' class="text-slate-500 hover:text-red-400 px-1" title="Remove">✕</button>`
+          ? `<button type="button" onclick='deleteAttachment(${idArg})' class="text-slate-500 hover:text-red-400 px-1" title="Remove" aria-label="Remove"><i class="fa-solid fa-xmark"></i></button>`
           : '';
 
         return `
           <div class="flex items-center justify-between gap-2">
-            <button type="button" onclick='${openAction}' class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1 min-w-0 text-left">
+            <button type="button" onclick='${openAction}' class="text-xs text-brand-500 font-medium hover:underline flex items-center gap-1.5 min-w-0 text-left">
               <span>${icon}</span>
               <span class="truncate">${label}</span>
             </button>
