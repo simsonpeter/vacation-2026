@@ -1,10 +1,10 @@
-const CACHE_NAME = 'vacation-2026-v13';
+const CACHE_NAME = 'vacation-2026-v14';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './firebase-config.js',
-  './cloud.js',
+  './firebase-config.js?v=14',
+  './cloud.js?v=14',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

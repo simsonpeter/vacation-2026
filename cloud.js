@@ -114,7 +114,16 @@
     };
   }
 
+  // Firestore field limit is ~1MB; keep headroom for other fields.
+  const MAX_DATA_URL_CHARS = 700000;
+
   function attachmentPayload(att) {
+    const dataUrl = att.dataUrl || "";
+    if (dataUrl.length > MAX_DATA_URL_CHARS) {
+      const err = new Error("File is too large for shared sync. Use a smaller file or add a link instead.");
+      err.code = "attachment-too-large";
+      throw err;
+    }
     return {
       eventId: att.eventId,
       kind: att.kind || "file",
@@ -125,10 +134,18 @@
       size: att.size || 0,
       url: att.url || "",
       label: att.label || "",
-      dataUrl: att.dataUrl || "",
+      dataUrl,
       createdAt: att.createdAt || Date.now(),
       updatedAt: Date.now()
     };
+  }
+
+  function canSeedAttachment(att) {
+    if (!att) return false;
+    if (att.kind === "link") return true;
+    const dataUrl = att.dataUrl || "";
+    if (!dataUrl) return true;
+    return dataUrl.length <= MAX_DATA_URL_CHARS;
   }
 
   function startTripListeners(tripId) {
@@ -207,28 +224,35 @@
     localStorage.setItem(LS_INVITE, inviteCode);
     localStorage.setItem(LS_TRIP, tripRef.id);
 
-    // Seed starter events after the trip exists (member rules now pass).
-    const events = Array.isArray(seedEvents) ? seedEvents : [];
-    for (let i = 0; i < events.length; i += 400) {
-      const chunk = events.slice(i, i + 400);
-      const batch = db.batch();
-      chunk.forEach((ev) => {
-        const id = String(ev.id || ("ev_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
-        const { id: _drop, ...rest } = ev;
-        batch.set(tripRef.collection("events").doc(id), { ...rest, updatedAt: Date.now() });
-      });
-      await batch.commit();
-    }
-
-    const atts = seedAttachments || {};
-    const attList = (Array.isArray(atts) ? atts : Object.values(atts)).filter(Boolean);
-    for (const a of attList) {
-      try {
-        const id = String(a.id || ("att_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
-        await tripRef.collection("attachments").doc(id).set(attachmentPayload(a));
-      } catch (_) {
-        // Skip oversized/legacy local attachments; trip + invite still succeed.
+    // Seed after trip exists. Never fail trip creation because of seed/attachment size.
+    try {
+      const events = Array.isArray(seedEvents) ? seedEvents : [];
+      for (let i = 0; i < events.length; i += 400) {
+        const chunk = events.slice(i, i + 400);
+        const batch = db.batch();
+        chunk.forEach((ev) => {
+          const id = String(ev.id || ("ev_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
+          const { id: _drop, ...rest } = ev;
+          // Strip any accidental huge fields from legacy local event objects
+          const clean = { ...rest };
+          if (clean.dataUrl && String(clean.dataUrl).length > MAX_DATA_URL_CHARS) delete clean.dataUrl;
+          batch.set(tripRef.collection("events").doc(id), { ...clean, updatedAt: Date.now() });
+        });
+        await batch.commit();
       }
+
+      const atts = seedAttachments || {};
+      const attList = (Array.isArray(atts) ? atts : Object.values(atts)).filter(canSeedAttachment);
+      for (const a of attList) {
+        try {
+          const id = String(a.id || ("att_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)));
+          await tripRef.collection("attachments").doc(id).set(attachmentPayload(a));
+        } catch (_) {
+          // Skip individual bad attachments
+        }
+      }
+    } catch (seedErr) {
+      console.warn("Trip created, but seeding some local data failed:", seedErr);
     }
 
     await loadTripMeta(tripRef.id);

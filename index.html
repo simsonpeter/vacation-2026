@@ -752,8 +752,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="./firebase-config.js"></script>
-  <script src="./cloud.js"></script>
+  <script src="./firebase-config.js?v=14"></script>
+  <script src="./cloud.js?v=14"></script>
 
   <!-- App Script (live shared trip via Firebase) -->
   <script>
@@ -938,7 +938,12 @@
       }
       try {
         const seedEvents = readLegacyLocalEvents();
-        const seedAtts = readLegacyLocalAttachments();
+        // Only migrate small attachments; large ticket PDFs exceed Firestore's 1MB field limit.
+        const seedAtts = readLegacyLocalAttachments().filter((a) => {
+          if (!a) return false;
+          if (a.kind === 'link') return true;
+          return !a.dataUrl || String(a.dataUrl).length <= 700000;
+        });
         const result = await VacationCloud.createTrip(seedEvents, seedAtts);
         const code = result.inviteCode;
         const big = document.getElementById('authInviteCodeBig');
