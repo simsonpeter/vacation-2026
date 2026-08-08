@@ -77,7 +77,11 @@
       app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
       auth = firebase.auth();
       db = firebase.firestore();
-      storage = firebase.storage();
+      try {
+        if (firebase.storage) storage = firebase.storage();
+      } catch (_) {
+        storage = null;
+      }
       try {
         db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
       } catch (_) {}
@@ -345,6 +349,10 @@
     await db.collection("trips").doc(state.tripId).collection("events").doc(String(eventId)).delete();
   }
 
+  // Free plan: store small files / compressed images as dataUrl in Firestore.
+  // Larger tickets/PDFs should be shared as links (Google Drive, etc.).
+  const MAX_FIRESTORE_DATA_URL = 700000;
+
   async function upsertAttachment(att) {
     ensureFirebase();
     if (!state.tripId) throw new Error("Join a shared trip first.");
@@ -373,27 +381,49 @@
       return id;
     }
 
-    let downloadUrl = att.url || "";
-    let storagePath = att.storagePath || "";
+    let dataUrl = att.dataUrl || "";
     let size = att.size || 0;
-    const blob = att.file || (att.dataUrl ? dataUrlToBlob(att.dataUrl) : null);
 
-    if (blob) {
-      size = blob.size || size;
-      if (size > MAX_FILE_BYTES) {
-        throw new Error("File is larger than 25MB. Use a smaller file or add a link instead.");
-      }
-      storagePath = `trips/${state.tripId}/attachments/${id}/${safeFileName(fileName)}`;
-      const ref = storage.ref(storagePath);
-      await ref.put(blob, { contentType: fileType || blob.type || "application/octet-stream" });
-      downloadUrl = await ref.getDownloadURL();
+    if (!dataUrl && att.file) {
+      dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Could not read file."));
+        reader.readAsDataURL(att.file);
+      });
+      size = att.file.size || size;
     }
 
-    if (!downloadUrl && !att.dataUrl) {
-      throw new Error("No file data to upload.");
+    if (!dataUrl && att.url) {
+      // Already a remote URL (e.g. previously uploaded)
+      await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
+        eventId: att.eventId,
+        kind: "file",
+        fileName,
+        fileType,
+        name: fileName,
+        type: fileType,
+        size,
+        url: att.url,
+        label: att.label || "",
+        dataUrl: "",
+        storagePath: att.storagePath || "",
+        createdAt,
+        updatedAt: Date.now()
+      }, { merge: true });
+      return id;
     }
 
-    // Store only the Storage URL in Firestore (not the file bytes).
+    if (!dataUrl) throw new Error("No file data to save.");
+
+    if (dataUrl.length > MAX_FIRESTORE_DATA_URL) {
+      const err = new Error(
+        "This file is too large for free shared sync. Upload it to Google Drive (or Photos), set sharing to Anyone with the link, then tap Link and paste that URL."
+      );
+      err.code = "attachment-too-large";
+      throw err;
+    }
+
     await db.collection("trips").doc(state.tripId).collection("attachments").doc(id).set({
       eventId: att.eventId,
       kind: "file",
@@ -401,32 +431,20 @@
       fileType,
       name: fileName,
       type: fileType,
-      size,
-      url: downloadUrl,
+      size: size || dataUrl.length,
+      url: "",
       label: att.label || "",
-      dataUrl: "",
-      storagePath,
+      dataUrl,
+      storagePath: "",
       createdAt,
       updatedAt: Date.now()
     }, { merge: true });
     return id;
   }
 
-  async function deleteStoragePath(storagePath) {
-    if (!storagePath || !storage) return;
-    try {
-      await storage.ref(storagePath).delete();
-    } catch (_) {}
-  }
-
   async function deleteAttachmentDoc(attachmentId) {
     if (!state.tripId) throw new Error("Join a shared trip first.");
-    const ref = db.collection("trips").doc(state.tripId).collection("attachments").doc(String(attachmentId));
-    const snap = await ref.get();
-    if (snap.exists) {
-      await deleteStoragePath(snap.data().storagePath || "");
-    }
-    await ref.delete();
+    await db.collection("trips").doc(state.tripId).collection("attachments").doc(String(attachmentId)).delete();
   }
 
   async function deleteAttachmentsForEvent(eventId) {
@@ -434,13 +452,8 @@
     const snap = await db.collection("trips").doc(state.tripId).collection("attachments")
       .where("eventId", "==", String(eventId)).get();
     const batch = db.batch();
-    const paths = [];
-    snap.forEach((doc) => {
-      paths.push(doc.data().storagePath || "");
-      batch.delete(doc.ref);
-    });
+    snap.forEach((doc) => batch.delete(doc.ref));
     if (!snap.empty) await batch.commit();
-    for (const path of paths) await deleteStoragePath(path);
   }
 
   function configure(cfg) {

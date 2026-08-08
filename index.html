@@ -709,22 +709,25 @@
     </div>
   </div>
 
-  <!-- Add Link Modal -->
+  <!-- Add Link Modal (best free way to share tickets/PDFs) -->
   <div id="linkModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-lg">Add Link</h3>
+        <h3 class="font-bold text-lg">Add ticket / file link</h3>
         <button onclick="closeLinkModal()" class="text-slate-400 hover:text-slate-200 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
       </div>
+      <p id="linkModalHint" class="text-xs text-slate-400">
+        Free shared sync uses links for larger files. Upload the PDF to <span class="text-slate-200">Google Drive</span> or Photos → Share → Anyone with the link → paste the URL here. Both of you can open it instantly.
+      </p>
       <form id="linkForm" onsubmit="saveLinkAttachment(event)" class="space-y-3">
         <input type="hidden" id="linkEventId">
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">URL</label>
-          <input type="text" id="linkUrl" required inputmode="url" placeholder="https://..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Share URL</label>
+          <input type="text" id="linkUrl" required inputmode="url" placeholder="https://drive.google.com/..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Label (optional)</label>
-          <input type="text" id="linkLabel" placeholder="e.g. Booking confirmation" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+          <input type="text" id="linkLabel" placeholder="e.g. Boarding pass" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
         </div>
         <div class="flex justify-end space-x-2 pt-2">
           <button type="button" onclick="closeLinkModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-xs font-medium text-slate-300">Cancel</button>
@@ -752,9 +755,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
-  <script src="./firebase-config.js?v=15"></script>
-  <script src="./cloud.js?v=15"></script>
+  <script src="./firebase-config.js?v=16"></script>
+  <script src="./cloud.js?v=16"></script>
 
   <!-- App Script (live shared trip via Firebase) -->
   <script>
@@ -1763,6 +1765,74 @@
       }
     }
 
+    function compressImageFile(file, maxEdge = 1600, quality = 0.72) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            let { width, height } = img;
+            const scale = Math.min(1, maxEdge / Math.max(width, height));
+            width = Math.max(1, Math.round(width * scale));
+            height = Math.max(1, Math.round(height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            URL.revokeObjectURL(url);
+            resolve(dataUrl);
+          } catch (err) {
+            URL.revokeObjectURL(url);
+            reject(err);
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Could not read image'));
+        };
+        img.src = url;
+      });
+    }
+
+    async function fileToAttachment(eventId, file) {
+      const type = file.type || guessMimeFromName(file.name);
+      const base = {
+        id: newAttachmentId(),
+        eventId,
+        kind: 'file',
+        fileName: file.name,
+        fileType: type,
+        size: file.size || 0,
+        createdAt: Date.now()
+      };
+
+      // Compress photos so they fit free Firestore sync
+      if (type.startsWith('image/')) {
+        let dataUrl = await compressImageFile(file, 1600, 0.72);
+        if (dataUrl.length > 700000) dataUrl = await compressImageFile(file, 1200, 0.55);
+        if (dataUrl.length > 700000) dataUrl = await compressImageFile(file, 900, 0.45);
+        return { ...base, fileName: file.name.replace(/\.\w+$/, '') + '.jpg', fileType: 'image/jpeg', dataUrl };
+      }
+
+      // Small non-image files can be stored directly
+      if ((file.size || 0) <= 480000) {
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Could not read file'));
+          reader.readAsDataURL(file);
+        });
+        if (dataUrl.length <= 700000) return { ...base, dataUrl };
+      }
+
+      // Larger PDFs/tickets: free path is a share link (no paid Storage)
+      const err = new Error('USE_LINK');
+      err.code = 'use-link';
+      throw err;
+    }
+
     async function uploadVoucher(eventId, event) {
       const input = event.target;
       const files = Array.from(input.files || []);
@@ -1772,25 +1842,36 @@
         return;
       }
 
-      // Upload File objects directly to Firebase Storage (no base64 / Firestore size limit).
-      const pending = files.map((file) => ({
-        id: newAttachmentId(),
-        eventId,
-        kind: 'file',
-        fileName: file.name,
-        fileType: file.type || guessMimeFromName(file.name),
-        size: file.size || 0,
-        file,
-        createdAt: Date.now()
-      }));
+      const pending = [];
+      let needsLink = false;
 
-      try {
-        await upsertAttachments(pending);
-      } catch (err) {
-        console.error(err);
-        alert(err.message || 'Could not upload one or more files.');
+      for (const file of files) {
+        try {
+          pending.push(await fileToAttachment(eventId, file));
+        } catch (err) {
+          if (err?.code === 'use-link' || err?.message === 'USE_LINK') needsLink = true;
+          else {
+            console.error(err);
+            alert(err.message || 'Could not prepare file.');
+          }
+        }
       }
+
+      if (pending.length) {
+        try {
+          await upsertAttachments(pending);
+        } catch (err) {
+          console.error(err);
+          if (err?.code === 'attachment-too-large') needsLink = true;
+          else alert(err.message || 'Could not upload one or more files.');
+        }
+      }
+
       input.value = '';
+      if (needsLink) {
+        alert('Ticket PDFs are too large for free sync.\n\nUpload the file to Google Drive → Share → Anyone with the link → tap Link on the event and paste that URL.\n\nYour partner will open the same link instantly.');
+        openLinkModal(eventId);
+      }
     }
 
     function guessMimeFromName(name = '') {
